@@ -1,0 +1,77 @@
+openapi: 3.0.1
+info:
+  description: "API defining resources and operations for configuring, reading and managing Device."
+  version: "0.0.3"
+  title: "Device Manager API"
+servers:
+  - url: "/api/v1"
+tags:
+  - name: Device
+    description: Managing Device
+paths:
+  /devices/{id}:
+    delete:
+      tags:
+        - Device
+      summary: Delete a Device
+      description: Device been deleted and stopped collect data.
+      operationId: deleteDevice
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier
+          required: true
+          schema:
+            maxLength: 32
+            minLength: 32
+            pattern: '[0-9A-F]{32}'
+            type: string
+        - name: If-Match
+          in: header
+          description: Last known version to facilitate optimistic locking
+          required: true
+          schema:
+            type: string
+      responses:
+        400:
+          description: Invalid Request.
+        404:
+          description: Not Found.
+        200:
+          description: The device
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: ETag hash of the resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+
+components:
+  schemas:
+    Device:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: The device's name.
+          minLength: 1
+          maxLength: 128
+          pattern: '[\p{L}_0-9_\. ]+'
+          example: 模拟modbusTcp服务
+        deviceCode:
+          type: string
+          description: The device's code.
+          maxLength: 256
+          example: abcdedkfedfadfed
+        deviceType:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '[a-z0-9]+'
+          description: >-
+            The device type such as modbusTcp or opcUa 、s71500.
