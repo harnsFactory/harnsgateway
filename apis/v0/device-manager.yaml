@@ -1,0 +1,240 @@
+openapi: 3.0.1
+info:
+  description: "API defining resources and operations for configuring, reading and managing Device."
+  version: "0.0.3"
+  title: "Device Manager API"
+servers:
+  - url: "/api/v1"
+tags:
+  - name: Device
+    description: Managing Device
+paths:
+  /devices:
+    post:
+      tags:
+        - Device
+      summary: Create a Device
+      operationId: createDevice
+      requestBody:
+        description: property set type
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Device'
+        required: true
+      responses:
+        "201":
+          description: The device has been created
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: ETag hash of the resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        "400":
+          description: Invalid request.
+
+  /devices/{id}:
+    delete:
+      tags:
+        - Device
+      summary: Delete a property set type
+      description: Property set type can only be deleted if there is no thing type using it.
+      operationId: deletePropertySetType
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier
+          required: true
+          schema:
+            maxLength: 32
+            minLength: 32
+            pattern: '[0-9A-F]{32}'
+            type: string
+        - name: If-Match
+          in: header
+          description: Last known version to facilitate optimistic locking
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The device
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: ETag hash of the resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+
+components:
+  schemas:
+    Device:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: The type's name.
+          minLength: 1
+          maxLength: 128
+          pattern: '[\p{L}_0-9_\. ]+'
+          example: 区域
+        description:
+          type: string
+          description: Description.
+          maxLength: 256
+          example: 这是区域的模板
+        parentTypeId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '[a-z0-9]+'
+          description: >-
+            The thign type's id is a unique identifier. Once set cannot be changed.
+        instantiable:
+          type: boolean
+          description: >-
+            If instances can be created from this type. A non-instantiable type
+            could be changed to be instantiable but not the other way around.
+          default: true
+          example: true
+#        characteristics:
+#          type: "array"
+#          items:
+#            $ref: '#/definitions/Characteristic'
+#        properties:
+#          type: "array"
+#          items:
+#            $ref: '#/definitions/Property'
+    Characteristic:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: The characteristic's name. Can NOT be changed.
+          minLength: 1
+          maxLength: 64
+          pattern: '[\p{L}_0-9_\. ]+'
+          example: 长
+        datatype:
+          type: string
+          description: Data type of the characteristic. Cannot be changed.
+          enum:
+            - string
+            - int32
+            - double
+            - bool
+          default: "string"
+          example: string
+        unit:
+          type: string
+          description: Unit of measurement. Can NOT be changed.
+          maxLength: 32
+          pattern: '[^\'']*'
+          example: 米
+        length:
+          type: integer
+          description: >-
+            The max length of the characteristic's value. The length field is only used
+            for variables of string datatype. Cannot be changed.
+          minimum: 1
+          maximum: 255
+          example: 5
+        defaultValue:
+          type: string
+          description: >-
+            The default value of the characteristic. It must be compatible with the
+            datatype! The default value will be inherited by the thing type's
+            child types and by the thing instantiating it.
+          example: 10
+        searchable:
+          type: boolean
+          description: >-
+            Indicates whether sorting and filtering is allowed on this characteristic.
+            Cannot be changed.
+          default: false
+          example: true
+    Property:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: The property's name. Can NOT be changed.
+          minLength: 1
+          maxLength: 64
+          pattern: '[\p{L}_0-9_\. ]+'
+          example: 温度
+        datatype:
+          type: string
+          description: Datatype of the property. Cannot be changed.
+          enum:
+            - string
+            - int32
+            - double
+            - bool
+          default: "string"
+          example: double
+        unit:
+          type: string
+          description: Unit of measurement. Can NOT be changed.
+          maxLength: 32
+          pattern: '[^\'']*'
+          example: 摄氏度
+        length:
+          type: integer
+          description: >-
+            The max length of the property's value. The length field is only used
+            for variables of string datatype. Cannot be changed.
+          minimum: 1
+          maximum: 255
+    ThingTypeId:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: '[a-z0-9]+'
+      description: >-
+        The thing type's id is a unique identifier. Once set cannot be changed.
+      example: main.区域
+    AgentTypeId:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: '[a-z0-9]+'
+      description: >-
+        The agent type's id is a unique identifier. Once set cannot be changed.
+      example: main.XX网关
+    ETag:
+      type: integer
+      description: incremental counter for optimistic locking
+      example: 1
+    UniqueId:
+      type: string
+      pattern: '[0-9a-f]+'
+      minLength: 32
+      maxLength: 32
+      example: c27a28b6eb16b507fabc11e75da8b4ce
+    timezone:
+      type: string
+      maxLength: 255
+      description: >-
+        The timezone to be used for timeseries aggregation. By default it is
+        inherited from the tenant's defaultTimezone, but can be overwritten only during thing creation. The
+        timezone value should be set to a Java time zone ID such as
+        "Europe/Berlin" or "Etc/GMT+2". Time zones that 15 or 45 minutes off
+        a UTC hour are not supported, such as Nepal standard time (UTC+05:45).
+        Time zones that are 30 minutes off a UTC hour are supported, such as India
+        (UTC+05:30). Once an thing is created with a specific timezone, it cannot be changed later.
+      default: Asia/Shanghai
+      example: Asia/Shanghai
