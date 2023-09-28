@@ -151,29 +151,36 @@ func (v *Variable) BlockSize() uint {
 func (v *Variable) ParseVariableAddress() (zone S7StoreArea, areaSize uint, address uint32, bit uint8) {
 	zone = v.Zone()
 	switch zone {
-	case I:
-		// I10.0
-		// I10.2
-		// I10
+	case I, Q, M:
 		areaSize = 0
-		// addressType = Bool
-		index := strings.LastIndex(v.Address, ".")
-		startAddressString := v.Address[1:index]
-		i, err := strconv.Atoi(startAddressString)
-		if err != nil {
-			klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
+		byteAddress := v.Address[1:]
+		if !v.shortening(byteAddress) {
+			byteAddress = byteAddress[1:]
 		}
-		address = uint32(i)
-		bitAddressString := v.Address[index+1:]
-		j, err := strconv.Atoi(bitAddressString)
-		if err != nil {
-			klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
+
+		index := strings.LastIndex(byteAddress, ".")
+		if index == -1 {
+			startAddressString := byteAddress[:]
+			i, err := strconv.Atoi(startAddressString)
+			if err != nil {
+				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
+			}
+			address = uint32(i)
+			bit = uint8(0)
+		} else {
+			startAddressString := byteAddress[:index]
+			i, err := strconv.Atoi(startAddressString)
+			if err != nil {
+				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
+			}
+			address = uint32(i)
+			bitAddressString := byteAddress[index+1:]
+			j, err := strconv.Atoi(bitAddressString)
+			if err != nil {
+				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
+			}
+			bit = uint8(j)
 		}
-		bit = uint8(j)
-	case Q:
-		// todo
-	case M:
-		// todo
 	case DB:
 		// DB7.DBX0.5
 		// DB1.DBD0
@@ -193,65 +200,44 @@ func (v *Variable) ParseVariableAddress() (zone S7StoreArea, areaSize uint, addr
 		}
 		areaSize = uint(bs)
 		byteAddress := v.Address[index+1:]
-		if strings.HasPrefix(byteAddress, "DBX") {
-			// addressType = Bool
-			startAddressString := byteAddress[3:strings.LastIndex(byteAddress, ".")]
+		if !v.shortening(byteAddress) {
+			byteAddress = byteAddress[3:]
+		}
+
+		lastIndex := strings.LastIndex(byteAddress, ".")
+		if lastIndex == -1 {
+			startAddressString := byteAddress[:]
 			i, err := strconv.Atoi(startAddressString)
 			if err != nil {
 				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
 			}
 			address = uint32(i)
-			bitAddressString := byteAddress[strings.LastIndex(byteAddress, ".")+1:]
+			bit = uint8(0)
+		} else {
+			startAddressString := byteAddress[:lastIndex]
+			i, err := strconv.Atoi(startAddressString)
+			if err != nil {
+				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
+			}
+			address = uint32(i)
+			bitAddressString := byteAddress[lastIndex+1:]
 			j, err := strconv.Atoi(bitAddressString)
 			if err != nil {
 				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
 			}
-			bit = uint8(j)
-		} else if strings.HasPrefix(byteAddress, "DBD") {
-			// addressType = DWord
-			startAddressString := byteAddress[3:]
-			i, err := strconv.Atoi(startAddressString)
-			if err != nil {
-				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
-			}
-			address = uint32(i)
-			bit = uint8(0)
-		} else if strings.HasPrefix(byteAddress, "DBW") {
-			// addressType = Word
-			startAddressString := byteAddress[3:]
-			i, err := strconv.Atoi(startAddressString)
-			if err != nil {
-				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
-			}
-			address = uint32(i)
-			bit = uint8(0)
-		} else if strings.HasPrefix(byteAddress, "B") {
-			// addressType = Byte
-			startAddressString := byteAddress[1:]
-			i, err := strconv.Atoi(startAddressString)
-			if err != nil {
-				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
-			}
-			address = uint32(i)
-			bit = uint8(0)
-		} else if strings.HasPrefix(byteAddress, "STRING") {
-			// addressType = String
-			startAddressString := byteAddress[6:strings.LastIndex(byteAddress, ".")]
-			i, err := strconv.Atoi(startAddressString)
-			if err != nil {
-				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
-			}
-			address = uint32(i)
-			bitAddressString := byteAddress[index+1:]
-			j, err := strconv.Atoi(bitAddressString)
-			if err != nil {
-				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
-			}
-			// length
 			bit = uint8(j)
 		}
 	}
 	return
+}
+
+func (v *Variable) shortening(byteAddress string) bool {
+	if strings.HasPrefix(byteAddress, "X") || strings.HasPrefix(byteAddress, "B") || strings.HasPrefix(byteAddress, "W") || strings.HasPrefix(byteAddress, "D") || strings.HasPrefix(byteAddress, "S") {
+		return false
+	} else if strings.HasPrefix(byteAddress, "DBX") || strings.HasPrefix(byteAddress, "DBB") || strings.HasPrefix(byteAddress, "DBW") || strings.HasPrefix(byteAddress, "DBD") || strings.HasPrefix(byteAddress, "DBS") {
+		return false
+	}
+	return true
 }
 
 func (v *Variable) SetValue(value interface{}) {

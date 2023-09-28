@@ -24,7 +24,8 @@ type S7Item struct {
 type S7DataFrame struct {
 	Zone              s7runtime.S7StoreArea
 	DataFrame         []byte
-	ItemCount         int
+	ItemCount         uint8
+	DataLength        int
 	ResponseDataFrame []byte
 	Variables         []*VariableParse
 }
@@ -33,29 +34,17 @@ func (df *S7DataFrame) ValidateMessage(least int) ([]byte, error) {
 	buf := df.ResponseDataFrame[:least]
 
 	itemLength := binutil.ParseUint16(buf[15:])
-	switch df.Zone {
-	case s7runtime.I:
-		if itemLength != uint16(df.ItemCount*5) {
-			klog.V(2).InfoS("Failed to get message enough length")
-			return nil, s7runtime.ErrMessageDataLengthNotEnough
-		}
-		if uint8(buf[17]) != 0 {
-			klog.V(2).InfoS("Failed to get s7 message")
-			return nil, s7runtime.ErrMessageS7Response
-		}
-		if uint8(buf[18]) != 0 {
-			klog.V(2).InfoS("Failed to get s7 message")
-			return nil, s7runtime.ErrMessageS7Response
-		}
-	case s7runtime.DB:
-		if uint8(buf[17]) != 0 {
-			klog.V(2).InfoS("Failed to get s7 message")
-			return nil, s7runtime.ErrMessageS7Response
-		}
-		if uint8(buf[18]) != 0 {
-			klog.V(2).InfoS("Failed to get s7 message")
-			return nil, s7runtime.ErrMessageS7Response
-		}
+	if itemLength != uint16(df.DataLength) {
+		klog.V(2).InfoS("Failed to get message enough length")
+		return nil, s7runtime.ErrMessageDataLengthNotEnough
+	}
+	if uint8(buf[17]) != 0 {
+		klog.V(2).InfoS("Failed to get s7 message")
+		return nil, s7runtime.ErrMessageS7Response
+	}
+	if uint8(buf[18]) != 0 {
+		klog.V(2).InfoS("Failed to get s7 message")
+		return nil, s7runtime.ErrMessageS7Response
 	}
 	return buf, nil
 }
@@ -219,16 +208,17 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 			}
 
 			if uint16(len(items)) == maxItemPerDataFrame {
-				frame := newS7DataFrame(key, variableParses, items, maxPdu)
+				frame := newS7DataFrame(key, variableParses, items, startAddressOffset, maxPdu)
 				dataFrames = append(dataFrames, frame)
 
 				itemMap = make(map[string]*S7Item, 0)
 				items = make([]*S7Item, 0)
 				variableParses = make([]*VariableParse, 0)
+				startAddressOffset = 0
 			}
 		}
 		if len(items) > 0 {
-			frame := newS7DataFrame(key, variableParses, items, maxPdu)
+			frame := newS7DataFrame(key, variableParses, items, startAddressOffset, maxPdu)
 			dataFrames = append(dataFrames, frame)
 		}
 		storeAddressDataFrameMap[key] = dataFrames
@@ -354,7 +344,7 @@ func (collector *S7Collector) message(ctx context.Context, dataFrame *S7DataFram
 		}
 		return nil
 	}, dataFrame); err != nil {
-		klog.V(2).InfoS("Failed to connect modbus server by retry three times")
+		klog.V(2).InfoS("Failed to connect s7 server by retry three times")
 		pvrCh <- &s7runtime.ParseVariableResult{Err: []error{err}}
 		return
 	}
@@ -438,7 +428,7 @@ func GetS7DevicePDULength(device *s7runtime.S7Device) (uint16, error) {
 
 }
 
-func newS7DataFrame(key s7runtime.S7StoreArea, variableParse []*VariableParse, items []*S7Item, pdu uint16) *S7DataFrame {
+func newS7DataFrame(key s7runtime.S7StoreArea, variableParse []*VariableParse, items []*S7Item, dataLength int, pdu uint16) *S7DataFrame {
 	data := []byte{0x03, 0x00, 0x00}
 	maxBytes := 7 + 10 + 2 + len(items)*12
 	data = append(data, uint8(maxBytes))
@@ -473,7 +463,8 @@ func newS7DataFrame(key s7runtime.S7StoreArea, variableParse []*VariableParse, i
 		DataFrame:         data,
 		ResponseDataFrame: make([]byte, pdu),
 		Variables:         variableParse,
-		ItemCount:         len(items),
+		ItemCount:         uint8(len(items)),
+		DataLength:        dataLength,
 	}
 	return df
 }
