@@ -12,18 +12,17 @@ import (
 	"k8s.io/klog/v2"
 	"net"
 	"sort"
-	"strconv"
 	"sync"
 	"time"
 )
 
 type S7Item struct {
 	RequestData  []byte
-	StartAddress uint // 响应报文中的位置
+	StartAddress uint // 响应报文中的item位置
 }
 
 type S7DataFrame struct {
-	Zone              s7runtime.S7StoreAddress
+	Zone              s7runtime.S7StoreArea
 	DataFrame         []byte
 	ItemCount         int
 	ResponseDataFrame []byte
@@ -65,83 +64,66 @@ func (df *S7DataFrame) ParseVariableValue(data []byte) s7runtime.VariableSlice {
 	vvs := make([]*s7runtime.Variable, 0, len(df.Variables))
 	for _, vp := range df.Variables {
 		var value interface{}
-		switch df.Zone {
-		case s7runtime.I:
-			switch vp.Variable.DataType {
-			case runtime.BOOL:
-				// startAddress 为item start的索引位置
-				v := data[vp.StartAddress+4]
-				value = 1<<(vp.BitAddressOrLength)&v != 0
-			case runtime.STRING:
-				v := data[vp.StartAddress+4]
-				sv := 1 << (vp.BitAddressOrLength) & v
-				value = strconv.Itoa(int(sv))
-			default:
-				v := data[vp.StartAddress+4]
-				value = 1 << (vp.BitAddressOrLength) & v
+		switch vp.Variable.DataType {
+		case runtime.BOOL:
+			// startAddress 为item start的索引位置
+			v := data[vp.StartAddress+4]
+			value = 1<<(vp.BitAddressOrLength)&v != 0
+		case runtime.STRING:
+			// todo
+		case runtime.UINT16:
+			var v interface{}
+			vpData := data[vp.StartAddress+4:]
+			v = binutil.ParseUint16BigEndian(vpData)
+			if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
+				value = uint16((v.(float64)) * vp.Variable.Rate)
+			} else {
+				value = v
 			}
-		case s7runtime.DB:
-			switch vp.Variable.DataType {
-			case runtime.BOOL:
-				// startAddress 为item start的索引位置
-				v := data[vp.StartAddress+4]
-				value = 1<<(vp.BitAddressOrLength)&v != 0
-			case runtime.STRING:
-				// todo
-			case runtime.UINT16:
-				var v interface{}
-				vpData := data[vp.StartAddress+4:]
-				v = binutil.ParseUint16BigEndian(vpData)
-				if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
-					value = uint16((v.(float64)) * vp.Variable.Rate)
-				} else {
-					value = v
-				}
-			case runtime.INT16:
-				var v interface{}
-				vpData := data[vp.StartAddress+4:]
-				v = int16(binutil.ParseUint16BigEndian(vpData))
-				if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
-					value = int16((v.(float64)) * vp.Variable.Rate)
-				} else {
-					value = v
-				}
-			case runtime.INT32:
-				var v interface{}
-				vpData := data[vp.StartAddress+4:]
-				v = int32(binutil.ParseUint32BigEndian(vpData))
-				if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
-					value = int32((v.(float64)) * vp.Variable.Rate)
-				} else {
-					value = v
-				}
-			case runtime.FLOAT32:
-				var v interface{}
-				vpData := data[vp.StartAddress+4:]
-				v = binutil.ParseFloat32BigEndian(vpData)
-				if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
-					value = float32((v.(float64)) * vp.Variable.Rate)
-				} else {
-					value = v
-				}
-			case runtime.INT64:
-				var v interface{}
-				vpData := data[vp.StartAddress+4:]
-				v = int64(binutil.ParseUint64BigEndian(vpData))
-				if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
-					value = int64((v.(float64)) * vp.Variable.Rate)
-				} else {
-					value = v
-				}
-			case runtime.FLOAT64:
-				var v interface{}
-				vpData := data[vp.StartAddress+4:]
-				v = binutil.ParseFloat64BigEndian(vpData)
-				if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
-					value = (v.(float64)) * vp.Variable.Rate
-				} else {
-					value = v
-				}
+		case runtime.INT16:
+			var v interface{}
+			vpData := data[vp.StartAddress+4:]
+			v = int16(binutil.ParseUint16BigEndian(vpData))
+			if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
+				value = int16((v.(float64)) * vp.Variable.Rate)
+			} else {
+				value = v
+			}
+		case runtime.INT32:
+			var v interface{}
+			vpData := data[vp.StartAddress+4:]
+			v = int32(binutil.ParseUint32BigEndian(vpData))
+			if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
+				value = int32((v.(float64)) * vp.Variable.Rate)
+			} else {
+				value = v
+			}
+		case runtime.FLOAT32:
+			var v interface{}
+			vpData := data[vp.StartAddress+4:]
+			v = binutil.ParseFloat32BigEndian(vpData)
+			if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
+				value = float32((v.(float64)) * vp.Variable.Rate)
+			} else {
+				value = v
+			}
+		case runtime.INT64:
+			var v interface{}
+			vpData := data[vp.StartAddress+4:]
+			v = int64(binutil.ParseUint64BigEndian(vpData))
+			if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
+				value = int64((v.(float64)) * vp.Variable.Rate)
+			} else {
+				value = v
+			}
+		case runtime.FLOAT64:
+			var v interface{}
+			vpData := data[vp.StartAddress+4:]
+			v = binutil.ParseFloat64BigEndian(vpData)
+			if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
+				value = (v.(float64)) * vp.Variable.Rate
+			} else {
+				value = v
 			}
 		}
 
@@ -159,7 +141,6 @@ func (df *S7DataFrame) ParseVariableValue(data []byte) s7runtime.VariableSlice {
 
 type VariableParse struct {
 	Variable           *s7runtime.Variable
-	AddressType        s7runtime.AddressType
 	StartAddress       uint
 	BitAddressOrLength uint8
 	BlockSize          uint
@@ -169,7 +150,7 @@ type S7Collector struct {
 	exitCh                   chan struct{}
 	Device                   *s7runtime.S7Device
 	Tunnels                  *Tunnels
-	StoreAddressDataFrameMap map[s7runtime.S7StoreAddress][]*S7DataFrame
+	StoreAddressDataFrameMap map[s7runtime.S7StoreArea][]*S7DataFrame
 	VariableCount            int
 	VariableCh               chan *runtime.ParseVariableResult
 	CanCollect               bool
@@ -190,114 +171,161 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 	CanCollect := false
 
 	variableCount := 0
-	storeAddressVariableMap := make(map[s7runtime.S7StoreAddress][]*s7runtime.Variable)
+	storeAddressVariableMap := make(map[s7runtime.S7StoreArea][]*s7runtime.Variable)
 	for _, variable := range device.Variables {
 		zone := variable.Zone()
 		storeAddressVariableMap[zone] = append(storeAddressVariableMap[zone], variable)
 	}
 
-	storeAddressDataFrameMap := make(map[s7runtime.S7StoreAddress][]*S7DataFrame)
+	storeAddressDataFrameMap := make(map[s7runtime.S7StoreArea][]*S7DataFrame)
 	for key, variables := range storeAddressVariableMap {
 		variableCount = variableCount + len(variables)
 		sort.Sort(s7runtime.VariableSlice(variables))
 		maxPdu := maxPduLength
 		dataFrames := make([]*S7DataFrame, 0)
 		// 请求报文19个字节 + item 每个item12个字节 返回的报文 cotp占19个字节 header2个字节
-		switch key {
-		case s7runtime.I:
-			// 以byte形式读取 发送的一个item占12个字节    返回的一个item占5个字节
-			maxItemPerDataFrame := (maxPdu - 19) / 12
-			itemMap := make(map[uint32]*S7Item, 0)
-			items := make([]*S7Item, 0)
-			variableParses := make([]*VariableParse, 0)
-			for _, variable := range variables {
-				_, blockSize, addressType, startAddress, bitAddress := variable.ParseVariableAddress()
-				if item, exist := itemMap[startAddress]; !exist {
-					it := &S7Item{
-						RequestData:  newS7COMMReadParameterItem(2, 1, 0, 129, startAddress, bitAddress),
-						StartAddress: uint(5 * len(items)),
-					}
-					itemMap[startAddress] = it
-					items = append(items, it)
-					vp := &VariableParse{
-						Variable:           variable,
-						AddressType:        addressType,
-						StartAddress:       it.StartAddress,
-						BitAddressOrLength: bitAddress,
-						BlockSize:          blockSize,
-					}
-					variableParses = append(variableParses, vp)
-				} else {
-					vp := &VariableParse{
-						Variable:           variable,
-						AddressType:        addressType,
-						StartAddress:       item.StartAddress,
-						BitAddressOrLength: bitAddress,
-						BlockSize:          blockSize,
-					}
-					variableParses = append(variableParses, vp)
-				}
-
-				if uint16(len(items)) == maxItemPerDataFrame {
-					frame := newS7DataFrame(key, variableParses, items, maxPdu)
-					dataFrames = append(dataFrames, frame)
-
-					itemMap = make(map[uint32]*S7Item, 0)
-					items = make([]*S7Item, 0)
-					variableParses = make([]*VariableParse, 0)
-				}
-
-			}
-
-			if len(items) > 0 {
-				frame := newS7DataFrame(key, variableParses, items, maxPdu)
-				dataFrames = append(dataFrames, frame)
-			}
-			storeAddressDataFrameMap[key] = dataFrames
-
-		case s7runtime.DB:
-			// 以word形式读取 发送的一个item占12个字节    返回的一个item占8个字节
-			// 不同的dbNumber在不同的item
-			maxItemPerDataFrame := (maxPdu - 19) / 12
-			// itemMap := make(map[uint]*S7Item, 0)
-			items := make([]*S7Item, 0)
-			variableParses := make([]*VariableParse, 0)
-			startAddressOffset := 0
-			for _, variable := range variables {
-				_, blockSize, addressType, startAddress, bitAddress := variable.ParseVariableAddress()
-				offset := int(4 + 2*variable.DataLength())
+		// switch key {
+		// case s7runtime.I, s7runtime.M, s7runtime.Q:
+		// 	// 以byte形式读取 发送的一个item占12个字节    返回的一个item至少占5个字节
+		// 	maxItemPerDataFrame := (maxPdu - 19) / 12
+		// 	itemMap := make(map[uint32]*S7Item, 0)
+		// 	items := make([]*S7Item, 0)
+		// 	variableParses := make([]*VariableParse, 0)
+		// 	startAddressOffset := 0
+		// 	for _, variable := range variables {
+		// 		_, blockSize, startAddress, bitAddress := variable.ParseVariableAddress()
+		// 		offset := int(4 + variable.DataByteLength())
+		// 		if item, exist := itemMap[startAddress]; !exist {
+		// 			it := &S7Item{
+		// 				RequestData:  newS7COMMReadParameterItem(2, 1, 0, s7runtime.StoreAreaCode[key], startAddress, bitAddress),
+		// 				StartAddress: uint(startAddressOffset),
+		// 			}
+		// 			startAddressOffset = startAddressOffset + offset
+		// 			itemMap[startAddress] = it
+		// 			items = append(items, it)
+		// 			vp := &VariableParse{
+		// 				Variable:           variable,
+		// 				StartAddress:       it.StartAddress,
+		// 				BitAddressOrLength: bitAddress,
+		// 				BlockSize:          blockSize,
+		// 			}
+		// 			variableParses = append(variableParses, vp)
+		// 		} else {
+		// 			vp := &VariableParse{
+		// 				Variable:           variable,
+		// 				StartAddress:       item.StartAddress,
+		// 				BitAddressOrLength: bitAddress,
+		// 				BlockSize:          blockSize,
+		// 			}
+		// 			variableParses = append(variableParses, vp)
+		// 		}
+		//
+		// 		if uint16(len(items)) == maxItemPerDataFrame {
+		// 			frame := newS7DataFrame(key, variableParses, items, maxPdu)
+		// 			dataFrames = append(dataFrames, frame)
+		//
+		// 			itemMap = make(map[uint32]*S7Item, 0)
+		// 			items = make([]*S7Item, 0)
+		// 			variableParses = make([]*VariableParse, 0)
+		// 		}
+		//
+		// 	}
+		//
+		// 	if len(items) > 0 {
+		// 		frame := newS7DataFrame(key, variableParses, items, maxPdu)
+		// 		dataFrames = append(dataFrames, frame)
+		// 	}
+		// 	storeAddressDataFrameMap[key] = dataFrames
+		//
+		// case s7runtime.DB:
+		// 	// 以word形式读取 发送的一个item占12个字节    返回的一个item至少占8个字节
+		// 	// 不同的dbNumber在不同的item
+		// 	maxItemPerDataFrame := (maxPdu - 19) / 12
+		// 	items := make([]*S7Item, 0)
+		// 	variableParses := make([]*VariableParse, 0)
+		// 	startAddressOffset := 0
+		// 	for _, variable := range variables {
+		// 		_, blockSize, startAddress, bitAddress := variable.ParseVariableAddress()
+		// 		offset := int(4 + 2*variable.DataWordLength())
+		// 		it := &S7Item{
+		// 			// 4 + 2 * length
+		// 			RequestData:  newS7COMMReadParameterItem(4, variable.DataWordLength(), uint16(blockSize), s7runtime.StoreAreaCode[key], startAddress, bitAddress),
+		// 			StartAddress: uint(startAddressOffset),
+		// 		}
+		// 		startAddressOffset = startAddressOffset + offset
+		// 		items = append(items, it)
+		//
+		// 		vp := &VariableParse{
+		// 			Variable:           variable,
+		// 			StartAddress:       it.StartAddress,
+		// 			BitAddressOrLength: bitAddress,
+		// 			BlockSize:          blockSize,
+		// 		}
+		// 		variableParses = append(variableParses, vp)
+		//
+		// 		if uint16(len(items)) == maxItemPerDataFrame {
+		// 			frame := newS7DataFrame(key, variableParses, items, maxPdu)
+		// 			dataFrames = append(dataFrames, frame)
+		//
+		// 			items = make([]*S7Item, 0)
+		// 			variableParses = make([]*VariableParse, 0)
+		// 			startAddressOffset = 0
+		// 		}
+		// 	}
+		// 	if len(items) > 0 {
+		// 		frame := newS7DataFrame(key, variableParses, items, maxPdu)
+		// 		dataFrames = append(dataFrames, frame)
+		// 	}
+		// 	storeAddressDataFrameMap[key] = dataFrames
+		// }
+		maxItemPerDataFrame := (maxPdu - 19) / 12
+		itemMap := make(map[string]*S7Item, 0)
+		items := make([]*S7Item, 0)
+		variableParses := make([]*VariableParse, 0)
+		startAddressOffset := 0
+		for _, variable := range variables {
+			zone, blockSize, startAddress, bitAddress := variable.ParseVariableAddress()
+			offset := int(4 + variable.DataResponseLength(key))
+			addressKey := fmt.Sprintf("%s.%d.%d", s7runtime.StoreAddressToString[zone], blockSize, startAddress)
+			if item, exist := itemMap[addressKey]; !exist {
 				it := &S7Item{
-					// 4 + 2 * length
-					RequestData:  newS7COMMReadParameterItem(4, variable.DataLength(), uint16(blockSize), 132, startAddress, bitAddress),
+					RequestData:  newS7COMMReadParameterItem(s7runtime.StoreAreaTransportSize[key], variable.DataRequestLength(key), uint16(blockSize), s7runtime.StoreAreaCode[key], startAddress, bitAddress),
 					StartAddress: uint(startAddressOffset),
 				}
 				startAddressOffset = startAddressOffset + offset
+				itemMap[addressKey] = it
 				items = append(items, it)
-
 				vp := &VariableParse{
 					Variable:           variable,
-					AddressType:        addressType,
 					StartAddress:       it.StartAddress,
 					BitAddressOrLength: bitAddress,
 					BlockSize:          blockSize,
 				}
 				variableParses = append(variableParses, vp)
-
-				if uint16(len(items)) == maxItemPerDataFrame {
-					frame := newS7DataFrame(key, variableParses, items, maxPdu)
-					dataFrames = append(dataFrames, frame)
-
-					items = make([]*S7Item, 0)
-					variableParses = make([]*VariableParse, 0)
-					startAddressOffset = 0
+			} else {
+				vp := &VariableParse{
+					Variable:           variable,
+					StartAddress:       item.StartAddress,
+					BitAddressOrLength: bitAddress,
+					BlockSize:          blockSize,
 				}
+				variableParses = append(variableParses, vp)
 			}
-			if len(items) > 0 {
+
+			if uint16(len(items)) == maxItemPerDataFrame {
 				frame := newS7DataFrame(key, variableParses, items, maxPdu)
 				dataFrames = append(dataFrames, frame)
+
+				itemMap = make(map[string]*S7Item, 0)
+				items = make([]*S7Item, 0)
+				variableParses = make([]*VariableParse, 0)
 			}
-			storeAddressDataFrameMap[key] = dataFrames
 		}
+		if len(items) > 0 {
+			frame := newS7DataFrame(key, variableParses, items, maxPdu)
+			dataFrames = append(dataFrames, frame)
+		}
+		storeAddressDataFrameMap[key] = dataFrames
 	}
 
 	tcpChannel := 0
@@ -438,28 +466,6 @@ func (collector *S7Collector) retry(fun func(dataFrame *S7DataFrame) error, data
 	return s7runtime.ErrManyRetry
 }
 
-// func (collector *S7Collector) retry(fun func(dataFrame *OpuUaDataFrame) (*opcua.Client, error), dataFrame *OpuUaDataFrame) error {
-// 	for i := 0; i < 3; i++ {
-// 		c, err := fun(dataFrame)
-// 		if err == nil {
-// 			return nil
-// 		}
-// 		switch {
-// 		case err == io.EOF && c.State() != opcua.Closed:
-// 			continue
-// 		case errors.Is(err, ua.StatusBadSessionIDInvalid):
-// 			continue
-// 		case errors.Is(err, ua.StatusBadSessionNotActivated):
-// 			continue
-// 		case errors.Is(err, ua.StatusBadSecureChannelIDInvalid):
-// 			continue
-// 		default:
-// 			klog.V(2).InfoS("Failed to read opc ua server data", "err", err)
-// 		}
-// 	}
-// 	return opcuaruntime.ErrManyRetry
-// }
-
 func (collector *S7Collector) rollVariable(ctx context.Context, ch chan *s7runtime.ParseVariableResult) {
 	rvs := make([]runtime.VariableValue, 0, collector.VariableCount)
 	errs := make([]error, 0)
@@ -526,7 +532,7 @@ func GetS7DevicePDULength(device *s7runtime.S7Device) (uint16, error) {
 
 }
 
-func newS7DataFrame(key s7runtime.S7StoreAddress, variableParse []*VariableParse, items []*S7Item, pdu uint16) *S7DataFrame {
+func newS7DataFrame(key s7runtime.S7StoreArea, variableParse []*VariableParse, items []*S7Item, pdu uint16) *S7DataFrame {
 	data := []byte{0x03, 0x00, 0x00}
 	maxBytes := 7 + 10 + 2 + len(items)*12
 	data = append(data, uint8(maxBytes))

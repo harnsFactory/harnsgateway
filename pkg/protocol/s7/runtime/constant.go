@@ -11,29 +11,42 @@ var ErrConnectS7DeviceS7COMMMessage = errors.New("Error connect s7 passed s7comm
 var ErrMessageDataLengthNotEnough = errors.New("S7 message data length not enough\n")
 var ErrMessageS7Response = errors.New("S7 message response error\n")
 
-type S7StoreAddress int8
+type S7StoreArea int8
 type AddressType int8
 
 const (
-	I S7StoreAddress = iota
+	I S7StoreArea = iota
 	Q
 	M
 	DB
-	// todo
 )
 
-var StoreAddressToString = map[S7StoreAddress]string{
+var StoreAddressToString = map[S7StoreArea]string{
 	I:  "I",
 	Q:  "Q",
 	M:  "M",
 	DB: "DB",
 }
 
-var StringToStoreAddress = map[string]S7StoreAddress{
+var StringToStoreAddress = map[string]S7StoreArea{
 	"I":  I,
 	"Q":  Q,
 	"M":  M,
 	"DB": DB,
+}
+
+var StoreAreaCode = map[S7StoreArea]uint8{
+	I:  129,
+	Q:  130,
+	M:  131,
+	DB: 132,
+}
+
+var StoreAreaTransportSize = map[S7StoreArea]uint8{
+	I:  2,
+	Q:  2,
+	M:  2,
+	DB: 4,
 }
 
 const (

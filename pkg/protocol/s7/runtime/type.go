@@ -16,12 +16,11 @@ type Variable struct {
 	Value        interface{}      `json:"value,omitempty"`        // 值
 }
 
-func (v *Variable) DataLength() uint16 {
+func (v *Variable) DataWordLength() uint16 {
 	switch v.DataType {
 	case runtime.BOOL:
 		return uint16(1)
 	case runtime.STRING:
-		// todo 字符串长度
 		return uint16(1)
 	case runtime.UINT16:
 		return uint16(1)
@@ -40,7 +39,128 @@ func (v *Variable) DataLength() uint16 {
 	}
 }
 
-func (v *Variable) Zone() S7StoreAddress {
+func (v *Variable) DataRequestLength(area S7StoreArea) uint16 {
+	switch area {
+	case I, Q, M:
+		switch v.DataType {
+		case runtime.BOOL:
+			return uint16(1)
+		case runtime.STRING:
+			return uint16(1)
+		case runtime.UINT16:
+			return uint16(2)
+		case runtime.INT16:
+			return uint16(2)
+		case runtime.INT32:
+			return uint16(4)
+		case runtime.FLOAT32:
+			return uint16(4)
+		case runtime.INT64:
+			return uint16(8)
+		case runtime.FLOAT64:
+			return uint16(8)
+		default:
+			return uint16(1)
+		}
+	case DB:
+		switch v.DataType {
+		case runtime.BOOL:
+			return uint16(1)
+		case runtime.STRING:
+			return uint16(1)
+		case runtime.UINT16:
+			return uint16(1)
+		case runtime.INT16:
+			return uint16(1)
+		case runtime.INT32:
+			return uint16(2)
+		case runtime.FLOAT32:
+			return uint16(2)
+		case runtime.INT64:
+			return uint16(4)
+		case runtime.FLOAT64:
+			return uint16(4)
+		default:
+			return uint16(1)
+		}
+	default:
+		return uint16(1)
+	}
+}
+
+func (v *Variable) DataResponseLength(area S7StoreArea) uint16 {
+	switch area {
+	case I, Q, M:
+		switch v.DataType {
+		case runtime.BOOL:
+			return uint16(1)
+		case runtime.STRING:
+			return uint16(1)
+		case runtime.UINT16:
+			return uint16(2)
+		case runtime.INT16:
+			return uint16(2)
+		case runtime.INT32:
+			return uint16(4)
+		case runtime.FLOAT32:
+			return uint16(4)
+		case runtime.INT64:
+			return uint16(8)
+		case runtime.FLOAT64:
+			return uint16(8)
+		default:
+			return uint16(1)
+		}
+	case DB:
+		switch v.DataType {
+		case runtime.BOOL:
+			return uint16(2)
+		case runtime.STRING:
+			return uint16(2)
+		case runtime.UINT16:
+			return uint16(2)
+		case runtime.INT16:
+			return uint16(2)
+		case runtime.INT32:
+			return uint16(4)
+		case runtime.FLOAT32:
+			return uint16(4)
+		case runtime.INT64:
+			return uint16(8)
+		case runtime.FLOAT64:
+			return uint16(8)
+		default:
+			return uint16(2)
+		}
+	default:
+		return uint16(1)
+	}
+}
+
+func (v *Variable) DataByteLength() uint16 {
+	switch v.DataType {
+	case runtime.BOOL:
+		return uint16(1)
+	case runtime.STRING:
+		return uint16(1)
+	case runtime.UINT16:
+		return uint16(2)
+	case runtime.INT16:
+		return uint16(2)
+	case runtime.INT32:
+		return uint16(4)
+	case runtime.FLOAT32:
+		return uint16(4)
+	case runtime.INT64:
+		return uint16(8)
+	case runtime.FLOAT64:
+		return uint16(8)
+	default:
+		return uint16(1)
+	}
+}
+
+func (v *Variable) Zone() S7StoreArea {
 	if strings.HasPrefix(v.Address, "I") {
 		return I
 	} else if strings.HasPrefix(v.Address, "M") {
@@ -50,8 +170,7 @@ func (v *Variable) Zone() S7StoreAddress {
 	} else if strings.HasPrefix(v.Address, "Q") {
 		return Q
 	}
-	// todo
-	return I
+	return DB
 }
 
 func (v *Variable) BlockSize() uint {
@@ -70,31 +189,31 @@ func (v *Variable) BlockSize() uint {
 	} else if strings.HasPrefix(v.Address, "Q") {
 		return 0
 	}
-	// todo
 	return 0
 }
 
-func (v *Variable) ParseVariableAddress() (zone S7StoreAddress, blockSize uint, addressType AddressType, startAddress uint32, bitAddress uint8) {
+func (v *Variable) ParseVariableAddress() (zone S7StoreArea, areaSize uint, address uint32, bit uint8) {
 	zone = v.Zone()
 	switch zone {
 	case I:
 		// I10.0
 		// I10.2
-		blockSize = 0
-		addressType = Bool
+		// I10
+		areaSize = 0
+		// addressType = Bool
 		index := strings.LastIndex(v.Address, ".")
 		startAddressString := v.Address[1:index]
 		i, err := strconv.Atoi(startAddressString)
 		if err != nil {
 			klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
 		}
-		startAddress = uint32(i)
+		address = uint32(i)
 		bitAddressString := v.Address[index+1:]
 		j, err := strconv.Atoi(bitAddressString)
 		if err != nil {
 			klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
 		}
-		bitAddress = uint8(j)
+		bit = uint8(j)
 	case Q:
 		// todo
 	case M:
@@ -116,64 +235,64 @@ func (v *Variable) ParseVariableAddress() (zone S7StoreAddress, blockSize uint, 
 		if err != nil {
 			klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
 		}
-		blockSize = uint(bs)
-		address := v.Address[index+1:]
-		if strings.HasPrefix(address, "DBX") {
-			addressType = Bool
-			startAddressString := address[3:strings.LastIndex(address, ".")]
+		areaSize = uint(bs)
+		byteAddress := v.Address[index+1:]
+		if strings.HasPrefix(byteAddress, "DBX") {
+			// addressType = Bool
+			startAddressString := byteAddress[3:strings.LastIndex(byteAddress, ".")]
 			i, err := strconv.Atoi(startAddressString)
 			if err != nil {
 				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
 			}
-			startAddress = uint32(i)
-			bitAddressString := address[strings.LastIndex(address, ".")+1:]
+			address = uint32(i)
+			bitAddressString := byteAddress[strings.LastIndex(byteAddress, ".")+1:]
 			j, err := strconv.Atoi(bitAddressString)
 			if err != nil {
 				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
 			}
-			bitAddress = uint8(j)
-		} else if strings.HasPrefix(address, "DBD") {
-			addressType = DWord
-			startAddressString := address[3:]
+			bit = uint8(j)
+		} else if strings.HasPrefix(byteAddress, "DBD") {
+			// addressType = DWord
+			startAddressString := byteAddress[3:]
 			i, err := strconv.Atoi(startAddressString)
 			if err != nil {
 				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
 			}
-			startAddress = uint32(i)
-			bitAddress = uint8(0)
-		} else if strings.HasPrefix(address, "DBW") {
-			addressType = Word
-			startAddressString := address[3:]
+			address = uint32(i)
+			bit = uint8(0)
+		} else if strings.HasPrefix(byteAddress, "DBW") {
+			// addressType = Word
+			startAddressString := byteAddress[3:]
 			i, err := strconv.Atoi(startAddressString)
 			if err != nil {
 				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
 			}
-			startAddress = uint32(i)
-			bitAddress = uint8(0)
-		} else if strings.HasPrefix(address, "B") {
-			addressType = Byte
-			startAddressString := address[1:]
+			address = uint32(i)
+			bit = uint8(0)
+		} else if strings.HasPrefix(byteAddress, "B") {
+			// addressType = Byte
+			startAddressString := byteAddress[1:]
 			i, err := strconv.Atoi(startAddressString)
 			if err != nil {
 				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
 			}
-			startAddress = uint32(i)
-			bitAddress = uint8(0)
-		} else if strings.HasPrefix(address, "STRING") {
-			addressType = String
-			startAddressString := address[6:strings.LastIndex(address, ".")]
+			address = uint32(i)
+			bit = uint8(0)
+		} else if strings.HasPrefix(byteAddress, "STRING") {
+			// addressType = String
+			startAddressString := byteAddress[6:strings.LastIndex(byteAddress, ".")]
 			i, err := strconv.Atoi(startAddressString)
 			if err != nil {
 				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
 			}
-			startAddress = uint32(i)
-			bitAddressString := address[index+1:]
+			address = uint32(i)
+			bitAddressString := byteAddress[index+1:]
 			j, err := strconv.Atoi(bitAddressString)
 			if err != nil {
 				klog.V(2).InfoS("Failed to read s7 variable address", "variableName", v.Name)
 			}
 			// length
-			bitAddress = uint8(j)
+			bit = uint8(j)
 		}
 	}
 	return
@@ -214,25 +333,26 @@ func (vs VariableSlice) Len() int {
 
 func (vs VariableSlice) Less(i, j int) bool {
 	switch vs[i].Zone() {
-	case I:
-		_, _, _, startAddressI, bitAddressI := vs[i].ParseVariableAddress()
-		_, _, _, startAddressJ, bitAddressJ := vs[j].ParseVariableAddress()
-		if startAddressI != startAddressJ {
-			return startAddressI < startAddressJ
+	case I, Q, M:
+		_, _, addressI, bitI := vs[i].ParseVariableAddress()
+		_, _, addressJ, bitJ := vs[j].ParseVariableAddress()
+		if addressI != addressJ {
+			return addressI < addressJ
 		} else {
-			return bitAddressI < bitAddressJ
+			return bitI < bitJ
 		}
 	case DB:
-		_, bsI, _, startAddressI, _ := vs[i].ParseVariableAddress()
-		_, bsJ, _, startAddressJ, _ := vs[j].ParseVariableAddress()
+		_, bsI, addressI, bitI := vs[i].ParseVariableAddress()
+		_, bsJ, addressJ, bitJ := vs[j].ParseVariableAddress()
 		if bsI != bsJ {
 			return bsI < bsJ
 		} else {
-			return startAddressI < startAddressJ
+			if addressI != addressJ {
+				return addressI < addressJ
+			} else {
+				return bitI < bitJ
+			}
 		}
-	// todo
-	case M:
-	case Q:
 	}
 	return false
 }
