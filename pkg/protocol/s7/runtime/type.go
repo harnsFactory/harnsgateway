@@ -16,31 +16,9 @@ type Variable struct {
 	Value        interface{}      `json:"value,omitempty"`        // 值
 }
 
-func (v *Variable) DataWordLength() uint16 {
-	switch v.DataType {
-	case runtime.BOOL:
-		return uint16(1)
-	case runtime.STRING:
-		return uint16(1)
-	case runtime.UINT16:
-		return uint16(1)
-	case runtime.INT16:
-		return uint16(1)
-	case runtime.INT32:
-		return uint16(2)
-	case runtime.FLOAT32:
-		return uint16(2)
-	case runtime.INT64:
-		return uint16(4)
-	case runtime.FLOAT64:
-		return uint16(4)
-	default:
-		return uint16(1)
-	}
-}
-
 func (v *Variable) DataRequestLength(area S7StoreArea) uint16 {
 	switch area {
+	// 以byte形式读取 发送的一个item占12个字节    返回的一个item至少占5个字节
 	case I, Q, M:
 		switch v.DataType {
 		case runtime.BOOL:
@@ -62,6 +40,7 @@ func (v *Variable) DataRequestLength(area S7StoreArea) uint16 {
 		default:
 			return uint16(1)
 		}
+	// 以word形式读取 发送的一个item占12个字节    返回的一个item至少占8个字节
 	case DB:
 		switch v.DataType {
 		case runtime.BOOL:
@@ -132,29 +111,6 @@ func (v *Variable) DataResponseLength(area S7StoreArea) uint16 {
 		default:
 			return uint16(2)
 		}
-	default:
-		return uint16(1)
-	}
-}
-
-func (v *Variable) DataByteLength() uint16 {
-	switch v.DataType {
-	case runtime.BOOL:
-		return uint16(1)
-	case runtime.STRING:
-		return uint16(1)
-	case runtime.UINT16:
-		return uint16(2)
-	case runtime.INT16:
-		return uint16(2)
-	case runtime.INT32:
-		return uint16(4)
-	case runtime.FLOAT32:
-		return uint16(4)
-	case runtime.INT64:
-		return uint16(8)
-	case runtime.FLOAT64:
-		return uint16(8)
 	default:
 		return uint16(1)
 	}
