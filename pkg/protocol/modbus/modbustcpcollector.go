@@ -46,8 +46,7 @@ func (df *ModBusDataFrame) GenerateReadMessage(slave uint, functionCode uint16, 
 	binutil.WriteUint16(message[4:], 6) // 剩余长度
 	message[6] = byte(slave)
 	message[7] = byte(functionCode)
-	// startAddress 应该减1
-	binutil.WriteUint16(message[8:], uint16(startAddress-1))
+	binutil.WriteUint16(message[8:], uint16(startAddress))
 	binutil.WriteUint16(message[10:], uint16(df.MaxDataSize))
 	df.DataFrame = message
 	df.ResponseDataFrame = make([]byte, 260)
@@ -259,8 +258,8 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 	for _, variable := range variables {
 		functionCodeVariableMap[variable.FunctionCode] = append(functionCodeVariableMap[variable.FunctionCode], variable)
 	}
-	// functionCode03 modbus 一次最多读取123个寄存器，236个字节
-	// functionCode01 modbus 一次最多读取236个字节 总共236 * 8 = 1888个线圈
+	// functionCode03 modbus 一次最多读取123个寄存器，246个字节
+	// functionCode01 modbus 一次最多读取246个字节 总共246 * 8 = 1968个线圈
 	for code, variables := range functionCodeVariableMap {
 		VariableCount = VariableCount + len(variables)
 		sort.Sort(modbusruntime.VariableSlice(variables))
@@ -272,10 +271,10 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 		df := &ModBusDataFrame{MemoryLayout: device.MemoryLayout}
 		switch code {
 		case 1, 2:
-			limitDataSize := startAddress + 1888
+			dataFrameDataLength := startAddress + 1967
 			for i := 0; i < len(variables); i++ {
 				variable := variables[i]
-				if variable.Address < limitDataSize {
+				if variable.Address <= dataFrameDataLength {
 					vp := &VariableParse{
 						Variable: variable,
 						Start:    variable.Address - startAddress,
@@ -288,15 +287,15 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 					df = &ModBusDataFrame{MemoryLayout: device.MemoryLayout}
 					maxDataSize = 0
 					startAddress = variable.Address
-					limitDataSize = startAddress + 1888
+					dataFrameDataLength = startAddress + 1967
 					i--
 				}
 			}
 		case 3, 4:
-			limitDataSize := startAddress + 123
+			dataFrameDataLength := startAddress + 122
 			for i := 0; i < len(variables); i++ {
 				variable := variables[i]
-				if variable.Address+runtime.DataTypeWord[variable.DataType] < limitDataSize+1 {
+				if variable.Address+runtime.DataTypeWord[variable.DataType] <= dataFrameDataLength {
 					vp := &VariableParse{
 						Variable: variable,
 						Start:    (variable.Address - startAddress) * 2,
@@ -309,7 +308,7 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 					df = &ModBusDataFrame{MemoryLayout: device.MemoryLayout}
 					maxDataSize = 0
 					startAddress = variable.Address
-					limitDataSize = startAddress + 123
+					dataFrameDataLength = startAddress + 122
 					i--
 				}
 			}
@@ -380,7 +379,6 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 func (collector *ModbusTcpCollector) Destroy(ctx context.Context) {
 	collector.exitCh <- struct{}{}
 	collector.Tunnels.Destroy(ctx)
-	// todo any other?
 	close(collector.VariableCh)
 }
 

@@ -118,11 +118,11 @@ components:
                 example: int32
               address:
                 type: integer
-                description: 变量地址.(注意:地址起始寄存器数值为1!)
+                description: 变量地址.(注意:地址起始寄存器数值为0!)
                 example: 16
               bits:
                 type: integer
-                description: 位地址.(注意:地址起始位为1,数据类型为Bool类型时使用)
+                description: 位地址.(注意:地址起始位为0,数据类型为Bool类型时使用)
                 nullable: true
               functionCode:
                 type: integer

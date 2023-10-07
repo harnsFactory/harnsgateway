@@ -45,7 +45,7 @@ func (m *ModbusDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Ru
 			d.Variables = append(d.Variables, &modbusruntime.Variable{
 				DataType:     runtime.StringToDataType[variable.DataType],
 				Name:         variable.Name,
-				Address:      variable.Address,
+				Address:      *variable.Address,
 				Bits:         variable.Bits,
 				FunctionCode: variable.FunctionCode,
 				Rate:         variable.Rate,
