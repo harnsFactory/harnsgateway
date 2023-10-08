@@ -52,6 +52,10 @@ type Device interface {
 	SetCollectStatus(bool)
 }
 
+type ResponseModel struct {
+	Devices interface{} `json:"devices,omitempty"`
+}
+
 type ParseVariableResult struct {
 	VariableSlice []VariableValue
 	Err           []error
@@ -68,7 +72,7 @@ type DeviceMeta struct {
 	ObjectMeta
 	DeviceCode    string `json:"deviceCode"`
 	DeviceType    string `json:"deviceType"`
-	CollectStatus bool   `json:"-"`
+	CollectStatus bool   `json:"collectStatus"`
 }
 
 type CreateOptions struct {

@@ -9,15 +9,19 @@ import (
 	"harnsgateway/pkg/apis"
 	"harnsgateway/pkg/apis/response"
 	"harnsgateway/pkg/generic"
+	"harnsgateway/pkg/runtime"
 	"io"
 	"k8s.io/klog/v2"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 func InstallHandler(group *gin.RouterGroup, mgr *Manager) {
 	group.POST("/devices", createDevice(mgr))
 	group.DELETE("/devices/:id", deleteDevice(mgr))
+	group.GET("/devices", listDevices(mgr))
+	group.GET("/devices/:id", getDeviceById(mgr))
 }
 
 func createDevice(mgr *Manager) gin.HandlerFunc {
@@ -78,5 +82,50 @@ func deleteDevice(mgr *Manager) gin.HandlerFunc {
 			return
 		}
 		context.JSON(http.StatusOK, device)
+	}
+}
+
+func listDevices(mgr *Manager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		query := c.Request.URL.Query()
+		exploded := false
+		filter := runtime.DeviceFilter{}
+		if len(query) > 0 {
+			v := query.Get(apis.Filter)
+			if len(v) > 0 {
+				if err := json.Unmarshal([]byte(v), &filter); err != nil {
+					c.JSON(http.StatusBadRequest, response.NewMultiError(response.ErrMalformedJSON))
+					return
+				}
+			}
+			exploded, _ = strconv.ParseBool(query.Get("exploded"))
+		}
+		rds, _ := mgr.listDevices(&filter, exploded)
+
+		c.JSON(http.StatusOK, &runtime.ResponseModel{Devices: rds})
+	}
+}
+
+func getDeviceById(mgr *Manager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+
+		query := c.Request.URL.Query()
+		exploded := false
+		if len(query) > 0 {
+			exploded, _ = strconv.ParseBool(query.Get("exploded"))
+		}
+		rd, err := mgr.GetDeviceById(id, exploded)
+		if err != nil {
+			if os.IsNotExist(err) {
+				c.Status(http.StatusNotFound)
+			} else {
+				c.Status(http.StatusInternalServerError)
+			}
+			return
+		}
+
+		c.Header(apis.ETag, fmt.Sprintf("%s", rd.GetVersion()))
+		c.JSON(http.StatusOK, rd)
 	}
 }

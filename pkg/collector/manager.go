@@ -73,6 +73,9 @@ func (m *Manager) GetDeviceById(id string, exploded bool) (runtime.Device, error
 		return nil, os.ErrNotExist
 	}
 	device, _ := d.(runtime.Device)
+	if !exploded {
+		return m.foldDevice(device), nil
+	}
 	return device, nil
 }
 
@@ -118,11 +121,42 @@ func (m *Manager) deleteDevice(id string, version string) (runtime.Device, error
 	}
 
 	klog.V(2).InfoS("Deleted device", "deviceId", device.GetID())
-	// m.stopCh <- struct{}{}
 	if err := m.cancelCollect(device); err != nil {
 		klog.V(2).InfoS("Failed to cancel collect data", "deviceId", device.GetID())
 	}
 	return device, nil
+}
+
+func (m *Manager) listDevices(filter *runtime.DeviceFilter, exploded bool) ([]runtime.Device, error) {
+	rds := make([]runtime.Device, 0)
+	predicates := runtime.ParseTypeFilter(filter)
+
+	// descend
+	byModTime := func(d1, d2 runtime.Device) bool { return d1.GetModTime().Before(d2.GetModTime()) }
+	sorter := runtime.ByDevice(byModTime)
+
+	m.devices.Range(func(key, value interface{}) bool {
+		isMatch := true
+		v := value.(runtime.Device)
+		for _, p := range predicates {
+			if !p(v) {
+				isMatch = false
+				break
+			}
+		}
+		if isMatch {
+			rds = sorter.Insert(rds, v)
+		}
+		return true
+	})
+
+	if !exploded {
+		for i := range rds {
+			rds[i] = m.foldDevice(rds[i])
+		}
+	}
+
+	return rds, nil
 }
 
 func (m Manager) cancelCollect(obj runtime.Device) error {
@@ -166,6 +200,8 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 								fmt.Printf("%s->%v\n", value.GetVariableName(), value.GetValue())
 							}
 							fmt.Println("+++++++++++++++++++++++++++++++++")
+						} else {
+							v.(runtime.Device).SetCollectStatus(false)
 						}
 					} else {
 						// todo
@@ -198,4 +234,18 @@ func (m *Manager) Shutdown(context context.Context) error {
 		return fmt.Errorf("Failed to shut down server: [%s]\n", strings.Join(errs, ","))
 	}
 	return nil
+}
+
+func (m *Manager) foldDevice(device runtime.Device) runtime.Device {
+	return &runtime.DeviceMeta{
+		ObjectMeta: runtime.ObjectMeta{
+			Name:    device.GetName(),
+			ID:      device.GetID(),
+			Version: device.GetVersion(),
+			ModTime: device.GetModTime(),
+		},
+		DeviceCode:    device.GetDeviceCode(),
+		DeviceType:    device.GetDeviceType(),
+		CollectStatus: device.GetCollectStatus(),
+	}
 }
