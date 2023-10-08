@@ -7,6 +7,7 @@ import (
 	"harnsgateway/pkg/generic"
 	baseoptions "harnsgateway/pkg/generic/options"
 	"harnsgateway/pkg/protocol/modbus"
+	"harnsgateway/pkg/protocol/modbusrtu"
 	"harnsgateway/pkg/protocol/opcua"
 	"harnsgateway/pkg/protocol/s7"
 	"harnsgateway/pkg/storage"
@@ -47,6 +48,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		collector.WithDeviceManager("modbusTcp", &modbus.ModbusDeviceManager{}),
 		collector.WithDeviceManager("opcUa", &opcua.OpcUaDeviceManager{}),
 		collector.WithDeviceManager("s71500", &s7.S7DeviceManager{}),
+		collector.WithDeviceManager("modbusRtu", &modbusrtu.ModbusRtuDeviceManager{}),
 	)
 
 	collectorMgr.Init()
