@@ -1,0 +1,175 @@
+openapi: 3.0.1
+info:
+  description: "API defining resources and operations for configuring, reading and managing Device."
+  version: "0.0.3"
+  title: "Device Manager API"
+servers:
+  - url: "/api/v1"
+tags:
+  - name: Device
+    description: Managing Device
+paths:
+  /devices:
+    post:
+      tags:
+        - Device
+      summary: Create ModbusRtu Device
+      operationId: createDevice
+      requestBody:
+        description: ModbusRtu Device
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModbusRtuDevice'
+        required: true
+      responses:
+        201:
+          description: The device has been created
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: ETag hash of the resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModbusRtuDevice'
+        400:
+          description: Invalid request.
+        500:
+          description: Internal Server Error.
+components:
+  schemas:
+    ModbusRtuDevice:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: 设备名称.
+          minLength: 1
+          maxLength: 128
+          pattern: '[\p{L}_0-9_\. ]+'
+          example: 模拟modbusRtu服务
+        deviceCode:
+          type: string
+          description: 设备编码.
+          maxLength: 256
+          example: abcdfsdfe
+        deviceType:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '[a-z0-9]+'
+          description: 设备类型.
+          example: modbusRtu
+        collectorCycle:
+          type: integer
+          description: 采集周期,单位为秒.
+          default: 1
+          example: 1
+        variableInterval:
+          type: integer
+          description: 变量间隔.
+          nullable: true
+        adress:
+          type: string
+          description: 串口地址.
+        baudRate:
+          type: integer
+          description: 波特率.
+          example: 9600
+          enum:
+            - 1200
+            - 2400
+            - 4800
+            - 9600
+            - 19200
+            - 38400
+            - 57600
+            - 115200
+        dataBits:
+          type: integer
+          description: 数据位.
+          enum:
+            - 5
+            - 6
+            - 7
+            - 8
+        parity:
+          type: string
+          description: 校验位.
+          enum:
+            - noParity
+            - oddParity
+            - evenParity
+        stopBits:
+          type: string
+          description: 停止位.
+          enum:
+            - 1
+            - 1.5
+            - 2
+        slave:
+          type: integer
+          description: SLAVE节点.
+        memoryLayout:
+          type: string
+          enum:
+            - ABCD
+            - BADC
+            - DCBA
+            - CDAB
+          description: 内存布局.
+        positionAddress:
+          type: integer
+          description: 地址起始偏移量.
+          nullable: true
+        variables:
+          type: array
+          description: 变量组.
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                description: 变量名称
+                example: A
+              datatype:
+                type: string
+                description: 变量数据类型.
+                enum:
+                  - bool
+                  - int16
+                  - float32
+                  - float64
+                  - int32
+                  - int64
+                  - uint16
+                example: int32
+              address:
+                type: integer
+                description: 变量地址.(注意:地址起始寄存器数值为0!)
+                example: 16
+              bits:
+                type: integer
+                description: 位地址.(注意:地址起始位为0,数据类型为Bool类型时使用)
+                nullable: true
+              functionCode:
+                type: integer
+                description: 功能码
+                example: 3
+              rate:
+                type: number
+                description: 缩放比例
+                example: 1.0
+                nullable: true
+              amount:
+                type: integer
+                description: 数量
+                nullable: true
+              defaultValue:
+                type: number
+                description: 默认值
+                nullable: true
