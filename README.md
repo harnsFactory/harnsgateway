@@ -6,11 +6,10 @@ industrial gateway. It can also be run as a service on the edge IoT platform to 
 ## What's the functions of harnsGateway
 
 * **Collect equipment data from south end**  
-  Supported protocol list:<br>
-
-  1. ModbusTcp ModbusRtu
-  2. S71500
-  3. OpcUA
+Supported protocol list:
+1. ModbusTcp ModbusRtu
+2. S71500
+3. OpcUA
 
 * **Control equipment from north end input**
 
