@@ -1,8 +1,8 @@
 ## What's harnsGateway
 
 HarnsGateway is used to connect industrial equipment.  
-It can be installed on embedded devices to become an edge industrial gateway.   
-It can also be run as a service on the edge IoT platform to become a soft gateway.  
+It can be installed on embedded devices to as edge industrial gateway.   
+It can also be run as a service on the edge IoT platform to as soft gateway.  
 
 ## What's the functions of harnsGateway
 
