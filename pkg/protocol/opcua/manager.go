@@ -1,7 +1,6 @@
 package opcua
 
 import (
-	"fmt"
 	opcuaruntime "harnsgateway/pkg/protocol/opcua/runtime"
 	"harnsgateway/pkg/runtime"
 	"harnsgateway/pkg/utils/randutil"
@@ -14,7 +13,7 @@ import (
 type OpcUaDeviceManager struct {
 }
 
-func (m *OpcUaDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.RunObject, error) {
+func (m *OpcUaDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device, error) {
 	opcUaDevice, ok := deviceType.(*v1.OpcUaDevice)
 	if !ok {
 		return nil, opcuaruntime.ErrDeviceType
@@ -24,7 +23,7 @@ func (m *OpcUaDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Run
 		DeviceMeta: runtime.DeviceMeta{
 			ObjectMeta: runtime.ObjectMeta{
 				Name:    opcUaDevice.Name,
-				ID:      fmt.Sprintf("%s.%s", opcUaDevice.GetDeviceType(), uuidutil.UUID()),
+				ID:      uuidutil.UUID(),
 				Version: strconv.FormatUint(randutil.Uint64n(), 10),
 				ModTime: time.Now(),
 			},
@@ -53,8 +52,10 @@ func (m *OpcUaDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Run
 	return d, nil
 }
 
-func (m *OpcUaDeviceManager) DeleteDevice(device runtime.Device) (runtime.RunObject, error) {
+func (m *OpcUaDeviceManager) DeleteDevice(device runtime.Device) (runtime.Device, error) {
 	return &opcuaruntime.OpcUaDevice{DeviceMeta: runtime.DeviceMeta{
 		ObjectMeta: runtime.ObjectMeta{ID: device.GetID(), Version: device.GetVersion()},
+		DeviceType: device.GetDeviceType(),
+		DeviceCode: device.GetDeviceCode(),
 	}}, nil
 }

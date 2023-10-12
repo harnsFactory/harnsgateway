@@ -6,6 +6,6 @@ import (
 )
 
 type DeviceManager interface {
-	CreateDevice(deviceType v1.DeviceType) (runtime.RunObject, error)
-	DeleteDevice(device runtime.Device) (runtime.RunObject, error)
+	CreateDevice(deviceType v1.DeviceType) (runtime.Device, error)
+	DeleteDevice(device runtime.Device) (runtime.Device, error)
 }

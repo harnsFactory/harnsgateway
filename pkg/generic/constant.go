@@ -20,7 +20,7 @@ var DeviceTypeMap = map[string]func() v1.DeviceType{
 	"modbusRtu": func() v1.DeviceType { return &v1.ModBusRtuDevice{} },
 }
 
-var DeviceTypeObjectMap = map[string]runtime.RunObject{
+var DeviceTypeObjectMap = map[string]runtime.Device{
 	"modbusTcp": &modbusruntime.ModBusDevice{},
 	"opcUa":     &opcuaruntime.OpcUaDevice{},
 	"s71500":    &s7runtime.S7Device{},

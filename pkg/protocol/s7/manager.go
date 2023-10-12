@@ -1,7 +1,6 @@
 package s7
 
 import (
-	"fmt"
 	s7runtime "harnsgateway/pkg/protocol/s7/runtime"
 	"harnsgateway/pkg/runtime"
 	"harnsgateway/pkg/utils/randutil"
@@ -14,7 +13,7 @@ import (
 type S7DeviceManager struct {
 }
 
-func (m *S7DeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.RunObject, error) {
+func (m *S7DeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device, error) {
 	s7Device, ok := deviceType.(*v1.S7Device)
 	if !ok {
 		return nil, s7runtime.ErrDeviceType
@@ -24,7 +23,7 @@ func (m *S7DeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.RunObj
 		DeviceMeta: runtime.DeviceMeta{
 			ObjectMeta: runtime.ObjectMeta{
 				Name:    s7Device.Name,
-				ID:      fmt.Sprintf("%s.%s", s7Device.GetDeviceType(), uuidutil.UUID()),
+				ID:      uuidutil.UUID(),
 				Version: strconv.FormatUint(randutil.Uint64n(), 10),
 				ModTime: time.Now(),
 			},
@@ -53,8 +52,10 @@ func (m *S7DeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.RunObj
 	return d, nil
 }
 
-func (m *S7DeviceManager) DeleteDevice(device runtime.Device) (runtime.RunObject, error) {
+func (m *S7DeviceManager) DeleteDevice(device runtime.Device) (runtime.Device, error) {
 	return &s7runtime.S7Device{DeviceMeta: runtime.DeviceMeta{
 		ObjectMeta: runtime.ObjectMeta{ID: device.GetID(), Version: device.GetVersion()},
+		DeviceType: device.GetDeviceType(),
+		DeviceCode: device.GetDeviceCode(),
 	}}, nil
 }

@@ -1,7 +1,6 @@
 package modbusrtu
 
 import (
-	"fmt"
 	modbusrturuntime "harnsgateway/pkg/protocol/modbusrtu/runtime"
 	"harnsgateway/pkg/runtime"
 	"harnsgateway/pkg/utils/randutil"
@@ -14,7 +13,7 @@ import (
 type ModbusRtuDeviceManager struct {
 }
 
-func (m *ModbusRtuDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.RunObject, error) {
+func (m *ModbusRtuDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device, error) {
 	modbusRtuDevice, ok := deviceType.(*v1.ModBusRtuDevice)
 	if !ok {
 		return nil, modbusrturuntime.ErrDeviceType
@@ -24,7 +23,7 @@ func (m *ModbusRtuDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime
 		DeviceMeta: runtime.DeviceMeta{
 			ObjectMeta: runtime.ObjectMeta{
 				Name:    modbusRtuDevice.Name,
-				ID:      fmt.Sprintf("%s.%s", modbusRtuDevice.GetDeviceType(), uuidutil.UUID()),
+				ID:      uuidutil.UUID(),
 				Version: strconv.FormatUint(randutil.Uint64n(), 10),
 				ModTime: time.Now(),
 			},
@@ -60,8 +59,10 @@ func (m *ModbusRtuDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime
 	return d, nil
 }
 
-func (m *ModbusRtuDeviceManager) DeleteDevice(device runtime.Device) (runtime.RunObject, error) {
+func (m *ModbusRtuDeviceManager) DeleteDevice(device runtime.Device) (runtime.Device, error) {
 	return &modbusrturuntime.ModBusRtuDevice{DeviceMeta: runtime.DeviceMeta{
 		ObjectMeta: runtime.ObjectMeta{ID: device.GetID(), Version: device.GetVersion()},
+		DeviceType: device.GetDeviceType(),
+		DeviceCode: device.GetDeviceCode(),
 	}}, nil
 }

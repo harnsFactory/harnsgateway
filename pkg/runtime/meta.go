@@ -31,6 +31,7 @@ type VariableValue interface {
 }
 
 type Object interface {
+	RunObject
 	GetName() string
 	SetName(string)
 	GetID() string
