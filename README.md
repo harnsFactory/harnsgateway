@@ -22,7 +22,7 @@ Supported protocol list:
 example **Connect ModbusTcp device**
 1. Started modbusTcp simulator(ModSim32) And update some parameters: deviceId = 1,functionCode = 3,And set first address value = 188.</br>[stepOne](https://postimg.cc/sBFyrN2M) </br>Then start service on port 502.
 2. Create modbusTcp device in harnsGateway.</br> [stepTow.png](https://postimg.cc/svYFZdpy)
-3. Subscript MQTT topic.</br> [stepThree.png](https://postimg.cc/ppTGRwqq) </br>Topic is 'data/v1/{deviceId}'
+3. Subscript MQTT topic.</br> [stepThree.png](https://postimg.cc/ppTGRwqq) </br>Topic is 'data/v1/{deviceId}'.
 
 ## How to Run Test
 
