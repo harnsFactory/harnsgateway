@@ -2,7 +2,9 @@ package collector
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"harnsgateway/pkg/apis"
 	"harnsgateway/pkg/generic"
 	"harnsgateway/pkg/runtime"
@@ -21,13 +23,14 @@ type labeledCloser struct {
 
 type Option func(*Manager)
 
-func WithDeviceManager(protocol string, manager DeviceManager) Option {
-	return func(m *Manager) {
-		m.deviceManager[protocol] = manager
-	}
-}
+// func WithDeviceManager(protocol string, manager DeviceManager) Option {
+// 	return func(m *Manager) {
+// 		m.deviceManager[protocol] = manager
+// 	}
+// }
 
 type Manager struct {
+	mqttClient        mqtt.Client
 	mu                *sync.Mutex
 	deviceManager     map[string]DeviceManager
 	devices           *sync.Map
@@ -39,11 +42,12 @@ type Manager struct {
 	closers           []labeledCloser
 }
 
-func NewCollectorManager(store *generic.Store, stop <-chan struct{}, opts ...Option) *Manager {
+func NewCollectorManager(store *generic.Store, mqttClient mqtt.Client, stop <-chan struct{}, opts ...Option) *Manager {
 	m := &Manager{
+		mqttClient:        mqttClient,
 		mu:                &sync.Mutex{},
 		devices:           &sync.Map{},
-		deviceManager:     make(map[string]DeviceManager, 0),
+		deviceManager:     DeviceManagers,
 		collectors:        make(map[string]runtime.Collector, 0),
 		collectorReturnCh: make(map[string]chan *runtime.ParseVariableResult, 0),
 		store:             store,
@@ -180,6 +184,7 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 	defer m.mu.Unlock()
 	m.collectors[obj.GetID()] = collector
 	m.collectorReturnCh[obj.GetID()] = results
+	topic := fmt.Sprintf("data/v1/%s", obj.GetID()[strings.Index(obj.GetID(), ".")+1:])
 	collector.Collect(context.Background())
 	go func(deviceId string, ch chan *runtime.ParseVariableResult) {
 		for {
@@ -193,13 +198,26 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 					if v, ok := m.devices.Load(deviceId); ok {
 						if len(pvr.Err) == 0 {
 							v.(runtime.Device).SetCollectStatus(true)
-							fmt.Println("+++++++++++++++++++++++++++++++++")
-							fmt.Printf("_time:%s\n", time.Now())
-							fmt.Printf("deviceId:%s\n", deviceId)
+							pds := make([]runtime.PointData, 0, len(pvr.VariableSlice))
 							for _, value := range pvr.VariableSlice {
-								fmt.Printf("%s->%v\n", value.GetVariableName(), value.GetValue())
+								pd := runtime.PointData{
+									DataPointId: value.GetVariableName(),
+									Value:       value.GetValue(),
+								}
+								pds = append(pds, pd)
 							}
-							fmt.Println("+++++++++++++++++++++++++++++++++")
+							publishData := runtime.PublishData{Payload: runtime.Payload{Data: []runtime.TimeSeriesData{{
+								Timestamp: time.Now().UTC().Format("2006-02-01T15:04:05.000Z"),
+								Values:    pds,
+							}}}}
+
+							marshal, _ := json.Marshal(publishData)
+							token := m.mqttClient.Publish(topic, 1, false, marshal)
+							if token.Wait() && token.Error() != nil {
+								klog.V(1).InfoS("Failed to publish MQTT", "topic", topic, "err", token.Error())
+							} else {
+								klog.V(5).InfoS("Succeed to publish MQTT", "topic", topic, "data", publishData)
+							}
 						} else {
 							v.(runtime.Device).SetCollectStatus(false)
 						}
