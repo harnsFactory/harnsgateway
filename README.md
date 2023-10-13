@@ -1,3 +1,4 @@
+**Read this in other languages: [English](README.md), [中文](README_zh.md).**
 ## What's harnsGateway
 
 HarnsGateway is used to connect industrial equipment.  
