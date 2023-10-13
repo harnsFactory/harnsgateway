@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/gob"
 	"encoding/json"
+	"errors"
 	"golang.org/x/mod/sumdb"
 	"harnsgateway/pkg/apis"
 	"harnsgateway/pkg/runtime"
@@ -30,7 +31,13 @@ var (
 func (fc *FsClient) Init(sg StoreGroup) {
 	_, err := os.Stat(storePath)
 	if err != nil {
-		klog.Fatalf("%s: %v", storePath, err)
+		if errors.Is(err, os.ErrNotExist) {
+			if err := os.MkdirAll(storePath, 0777); err != nil {
+				klog.Fatalf("%s: %v", storePath, err)
+			}
+		} else {
+			klog.Fatalf("%s: %v", storePath, err)
+		}
 	}
 
 	var dirs []string
