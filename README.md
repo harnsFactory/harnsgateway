@@ -20,6 +20,8 @@ It can also be run as a service on the edge IoT platform to as soft gateway.
 
 ## How to Build
 
+1. git clone 
+
 ## How to Start
 
 ## How to Use

@@ -4,7 +4,7 @@
 package fileutil
 
 import (
-	"lightiot/pkg/tsdb/fileutil"
+	"harnsgateway/pkg/tsdb/fileutil"
 	"os"
 	"syscall"
 )
