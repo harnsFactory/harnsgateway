@@ -23,7 +23,7 @@ HarnsGateway 可以安装在嵌入式设备上作为硬网关采集工业数据,
 2. cd harnsgateway
 3. make
 4. cd harnsgateway/_output/bin/
-5. 
+
 ## 如何启动
 
 1. QuickStart</br> ./gateway --mqtt-broker-urls=127.0.0.1:1883 &
