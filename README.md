@@ -20,9 +20,15 @@ It can also be run as a service on the edge IoT platform to as soft gateway.
 
 ## How to Build
 
-1. git clone 
+1. git clone https://github.com/harnsFactory/harnsgateway.git
+2. cd harnsgateway
+3. make
+4. cd harnsgateway/_output/bin/
 
 ## How to Start
+
+1. QuickStart</br> ./gateway --mqtt-broker-urls=127.0.0.1:1883 &
+2. Systemd
 
 ## How to Use
 
