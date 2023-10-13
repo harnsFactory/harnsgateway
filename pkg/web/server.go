@@ -11,6 +11,7 @@ import (
 	"harnsgateway/pkg/generic"
 	"k8s.io/klog/v2"
 	"net/http"
+	"os"
 )
 
 type Server struct {
@@ -44,23 +45,35 @@ func (s *Server) InstallHandlers() {
 }
 
 func (s *Server) Serve() (func(ctx context.Context), error) {
-	x509KeyPair, err := tls.LoadX509KeyPair("cert/server.crt", "cert/server.key")
+	var srv *http.Server
+	_, err := os.Stat("cert")
 	if err != nil {
-		return nil, err
-	}
-	c := &tls.Config{
-		Certificates: []tls.Certificate{x509KeyPair},
-	}
+		x509KeyPair, err := tls.LoadX509KeyPair("cert/server.crt", "cert/server.key")
+		if err != nil {
+			return nil, err
+		}
+		c := &tls.Config{
+			Certificates: []tls.Certificate{x509KeyPair},
+		}
 
-	srv := &http.Server{
-		Addr:      fmt.Sprintf(":%s", s.Port),
-		Handler:   s.Router,
-		TLSConfig: c,
-	}
+		srv = &http.Server{
+			Addr:      fmt.Sprintf(":%s", s.Port),
+			Handler:   s.Router,
+			TLSConfig: c,
+		}
+		go func() {
+			klog.Error(srv.ListenAndServeTLS("", ""))
+		}()
 
-	go func() {
-		klog.Error(srv.ListenAndServeTLS("", ""))
-	}()
+	} else {
+		srv = &http.Server{
+			Addr:    fmt.Sprintf(":%s", s.Port),
+			Handler: s.Router,
+		}
+		go func() {
+			klog.Error(srv.ListenAndServe())
+		}()
+	}
 
 	return func(ctx context.Context) {
 		srv.SetKeepAlivesEnabled(false)
