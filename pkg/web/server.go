@@ -11,7 +11,6 @@ import (
 	"harnsgateway/pkg/generic"
 	"k8s.io/klog/v2"
 	"net/http"
-	"os"
 )
 
 type Server struct {
@@ -46,9 +45,8 @@ func (s *Server) InstallHandlers() {
 
 func (s *Server) Serve() (func(ctx context.Context), error) {
 	var srv *http.Server
-	_, err := os.Stat("cert")
-	if err != nil {
-		x509KeyPair, err := tls.LoadX509KeyPair("cert/server.crt", "cert/server.key")
+	if len(s.Config.CertFile) != 0 && len(s.Config.KeyFile) != 0 {
+		x509KeyPair, err := tls.LoadX509KeyPair(s.Config.CertFile, s.Config.KeyFile)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +62,6 @@ func (s *Server) Serve() (func(ctx context.Context), error) {
 		go func() {
 			klog.Error(srv.ListenAndServeTLS("", ""))
 		}()
-
 	} else {
 		srv = &http.Server{
 			Addr:    fmt.Sprintf(":%s", s.Port),

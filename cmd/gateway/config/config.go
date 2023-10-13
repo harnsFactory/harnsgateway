@@ -6,4 +6,6 @@ import (
 
 type Config struct {
 	CollectorMgr *collector.Manager
+	CertFile     string
+	KeyFile      string
 }

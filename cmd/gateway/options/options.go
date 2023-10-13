@@ -18,6 +18,8 @@ type Options struct {
 	MqttBrokerUrls []string      `json:"mqtt-broker-urls"`
 	MqttUsername   string        `json:"mqtt-username"`
 	MqttPassword   string        `json:"mqtt-password"`
+	CertFile       string        `json:"cert-file"`
+	KeyFile        string        `json:"key-file"`
 	baseoptions.BaseOptions
 	// logs.BaseOptions
 }
@@ -41,6 +43,8 @@ func NewDefaultOptions() *Options {
 		MqttUsername:   _defaultMqttUsername,
 		MqttPassword:   _defaultMqttPassword,
 		BaseOptions:    baseoptions.NewDefaultBaseOptions(),
+		CertFile:       "",
+		KeyFile:        "",
 		// BaseOptions: logs.NewOptions(),
 	}
 }
@@ -52,6 +56,8 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVarP(&o.MqttBrokerUrls, "mqtt-broker-urls", "", o.MqttBrokerUrls, "The MQTT broker urls. The format should be scheme://host:port Where \"scheme\" is one of \"tcp\", \"ssl\", or \"ws\"")
 	fs.StringVarP(&o.MqttUsername, "mqtt-username", "u", o.MqttUsername, "The MQTT username")
 	fs.StringVarP(&o.MqttPassword, "mqtt-password", "p", o.MqttPassword, "The MQTT password")
+	fs.StringVarP(&o.CertFile, "cert-file", "", o.CertFile, "The Cert file")
+	fs.StringVarP(&o.KeyFile, "key-file", "", o.KeyFile, "The Key file")
 }
 
 func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
@@ -77,6 +83,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 
 	collectorMgr.Init()
 	c.CollectorMgr = collectorMgr
-
+	c.KeyFile = o.KeyFile
+	c.CertFile = o.CertFile
 	return c, nil
 }
