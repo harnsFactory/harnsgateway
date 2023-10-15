@@ -10,16 +10,21 @@ import (
 )
 
 type Tunnels struct {
-	newClient    func() (*opcua.Client, error)
-	clients      *list.List
+	newMessenger func() (*Messenger, error)
+	Messengers   *list.List
 	Max          int
 	Idle         int
 	Mux          *sync.Mutex
-	ConnRequests map[uint64]chan *opcua.Client
+	ConnRequests map[uint64]chan *Messenger
 	NextRequest  uint64
 }
 
-func (t *Tunnels) getTunnel(ctx context.Context) (*opcua.Client, error) {
+type Messenger struct {
+	Timeout int
+	Tunnel  *opcua.Client
+}
+
+func (t *Tunnels) getTunnel(ctx context.Context) (*Messenger, error) {
 	select {
 	default:
 	case <-ctx.Done():
@@ -29,23 +34,23 @@ func (t *Tunnels) getTunnel(ctx context.Context) (*opcua.Client, error) {
 	t.Mux.Lock()
 	if t.Idle > 0 {
 		t.Idle = t.Idle - 1
-		front := t.clients.Front()
-		client := front.Value.(*opcua.Client)
-		t.clients.Remove(front)
-		if client.State() == opcua.Closed || client.State() == opcua.Disconnected {
-			client.Close(ctx)
-			newClient, err := t.newClient()
+		front := t.Messengers.Front()
+		messenger := front.Value.(*Messenger)
+		t.Messengers.Remove(front)
+		if messenger.Tunnel.State() == opcua.Closed || messenger.Tunnel.State() == opcua.Disconnected {
+			messenger.Tunnel.Close(ctx)
+			newMessenger, err := t.newMessenger()
 			if err != nil {
 				klog.V(2).InfoS("Failed to connect opc ua server", "error", err)
 				return nil, opcuaruntime.ErrConnectOpuServer
 			}
-			return newClient, nil
+			return newMessenger, nil
 		}
 		t.Mux.Unlock()
-		return client, nil
+		return messenger, nil
 	}
 
-	cCh := make(chan *opcua.Client, 1)
+	cCh := make(chan *Messenger, 1)
 	key := t.nextRequestKey()
 	t.ConnRequests[key] = cCh
 	t.Mux.Unlock()
@@ -57,9 +62,9 @@ func (t *Tunnels) getTunnel(ctx context.Context) (*opcua.Client, error) {
 		t.Mux.Unlock()
 		select {
 		default:
-		case c, ok := <-cCh:
-			if ok && c.State() != opcua.Closed {
-				t.clients.PushBack(c)
+		case m, ok := <-cCh:
+			if ok && m.Tunnel.State() != opcua.Closed {
+				t.Messengers.PushBack(m)
 			}
 		}
 		return nil, ctx.Err()
@@ -71,19 +76,19 @@ func (t *Tunnels) getTunnel(ctx context.Context) (*opcua.Client, error) {
 	}
 }
 
-func (t *Tunnels) releaseTunnel(client *opcua.Client) {
+func (t *Tunnels) releaseTunnel(messenger *Messenger) {
 	t.Mux.Lock()
 	defer t.Mux.Unlock()
 	if t.Idle == 0 && len(t.ConnRequests) > 0 {
-		var cCh chan *opcua.Client
+		var cCh chan *Messenger
 		var key uint64
 		for key, cCh = range t.ConnRequests {
 			break
 		}
 		delete(t.ConnRequests, key)
-		cCh <- client
+		cCh <- messenger
 	} else {
-		t.clients.PushBack(client)
+		t.Messengers.PushBack(messenger)
 		t.Idle = t.Idle + 1
 	}
 }
@@ -91,11 +96,11 @@ func (t *Tunnels) releaseTunnel(client *opcua.Client) {
 func (t *Tunnels) Destroy(ctx context.Context) {
 	t.Mux.Lock()
 	defer t.Mux.Unlock()
-	for t.clients.Len() > 0 {
-		e := t.clients.Front()
-		c := e.Value.(*opcua.Client)
-		c.Close(ctx)
-		t.clients.Remove(e)
+	for t.Messengers.Len() > 0 {
+		e := t.Messengers.Front()
+		messenger := e.Value.(*Messenger)
+		messenger.Tunnel.Close(ctx)
+		t.Messengers.Remove(e)
 	}
 
 	for _, clientsRequest := range t.ConnRequests {

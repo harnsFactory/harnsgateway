@@ -3,6 +3,7 @@ package runtime
 import "errors"
 
 var ErrBadConn = errors.New("Tcp bad connection\n")
+var ErrServerBadResp = errors.New("Tcp server bad response\n")
 var ErrTcpClosed = errors.New("Tcp closed\n")
 var ErrMessageTransaction = errors.New("Tcp message transaction not match\n")
 var ErrMessageDataLengthNotEnough = errors.New("Tcp message data length not enough\n")

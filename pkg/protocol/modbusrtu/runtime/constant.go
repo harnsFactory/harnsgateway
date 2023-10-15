@@ -6,7 +6,8 @@ import (
 	"harnsgateway/pkg/runtime"
 )
 
-var ErrBadConn = errors.New("Tcp bad connection\n")
+var ErrBadConn = errors.New("Rtu bad connection\n")
+var ErrServerBadResp = errors.New("Rtu server bad response\n")
 var ErrSerialPortClosed = errors.New("Serial port closed\n")
 var ErrModbusRtuDataLengthNotEnough = errors.New("Modbus rtu message data length not enough\n")
 var ErrCRC16Error = errors.New("Rtu message crc16 error\n")

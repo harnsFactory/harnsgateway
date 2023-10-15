@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"context"
 	modbusruntime "harnsgateway/pkg/protocol/modbus/runtime"
+	s7runtime "harnsgateway/pkg/protocol/s7/runtime"
 	"io"
 	"k8s.io/klog/v2"
 	"net"
@@ -111,7 +112,7 @@ func (m *Messenger) AskAtLeast(request []byte, response []byte, min int) (int, e
 	_, err := m.Tunnel.Write(request)
 	if err != nil {
 		klog.V(2).InfoS("Failed to ask message", "error", err)
-		return 0, err
+		return 0, s7runtime.ErrBadConn
 	}
 	// 设置读超时
 	deadLineTime := time.Now().Add(time.Duration(m.Timeout) * time.Second)

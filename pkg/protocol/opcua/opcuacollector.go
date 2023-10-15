@@ -81,7 +81,7 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 		endpoint = fmt.Sprintf("%s:%d", device.Address, device.Port)
 	}
 
-	cs := list.New()
+	ms := list.New()
 	for i := 0; i < tcpChannel; i++ {
 		c, err := opcua.NewClient(endpoint, opcua.SecurityMode(ua.MessageSecurityModeNone))
 		if err != nil {
@@ -90,17 +90,21 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 		if err := c.Connect(context.Background()); err != nil {
 			klog.V(2).InfoS("Failed to connect opc ua server")
 		}
-		cs.PushBack(c)
+		m := &Messenger{
+			Timeout: 1,
+			Tunnel:  c,
+		}
+		ms.PushBack(m)
 	}
 
 	tunnels := &Tunnels{
-		clients:      cs,
+		Messengers:   ms,
 		Max:          tcpChannel,
 		Idle:         tcpChannel,
 		Mux:          &sync.Mutex{},
 		NextRequest:  1,
-		ConnRequests: make(map[uint64]chan *opcua.Client, 0),
-		newClient: func() (*opcua.Client, error) {
+		ConnRequests: make(map[uint64]chan *Messenger, 0),
+		newMessenger: func() (*Messenger, error) {
 			c, err := opcua.NewClient(endpoint, opcua.SecurityMode(ua.MessageSecurityModeNone))
 			if err != nil {
 				klog.V(2).InfoS("Failed to get opc ua client")
@@ -108,7 +112,11 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 			if err := c.Connect(context.Background()); err != nil {
 				klog.V(2).InfoS("Failed to connect opc ua server")
 			}
-			return c, nil
+
+			return &Messenger{
+				Timeout: 1,
+				Tunnel:  c,
+			}, nil
 		},
 	}
 
@@ -175,17 +183,17 @@ func (collector *OpcUaCollector) poll(ctx context.Context) bool {
 
 func (collector *OpcUaCollector) message(ctx context.Context, dataFrame *OpuUaDataFrame, pvrCh chan *opcuaruntime.ParseVariableResult, sw *sync.WaitGroup) {
 	defer sw.Done()
-	c, err := collector.Tunnels.getTunnel(ctx)
+	tunnel, err := collector.Tunnels.getTunnel(ctx)
 	if err != nil {
 		pvrCh <- &opcuaruntime.ParseVariableResult{Err: []error{err}}
 	}
-	defer collector.Tunnels.releaseTunnel(c)
+	defer collector.Tunnels.releaseTunnel(tunnel)
 
 	var response *ua.ReadResponse
-	if err := collector.retry(func(dataFrame *OpuUaDataFrame) (*opcua.Client, error) {
-		response, err = c.Read(ctx, dataFrame.RequestVariables)
-		return c, err
-	}, dataFrame); err != nil {
+	if err := collector.retry(func(tunnel *Messenger, dataFrame *OpuUaDataFrame) error {
+		response, err = tunnel.Tunnel.Read(ctx, dataFrame.RequestVariables)
+		return err
+	}, tunnel, dataFrame); err != nil {
 		klog.V(2).InfoS("Failed to connect opc ua server by retry three times")
 		pvrCh <- &opcuaruntime.ParseVariableResult{Err: []error{err}}
 		return
@@ -207,18 +215,36 @@ func (collector *OpcUaCollector) message(ctx context.Context, dataFrame *OpuUaDa
 	pvrCh <- &opcuaruntime.ParseVariableResult{Err: nil, VariableSlice: variables}
 }
 
-func (collector *OpcUaCollector) retry(fun func(dataFrame *OpuUaDataFrame) (*opcua.Client, error), dataFrame *OpuUaDataFrame) error {
+func (collector *OpcUaCollector) retry(fun func(m *Messenger, dataFrame *OpuUaDataFrame) error, m *Messenger, dataFrame *OpuUaDataFrame) error {
 	for i := 0; i < 3; i++ {
-		c, err := fun(dataFrame)
+		err := fun(m, dataFrame)
 		if err == nil {
 			return nil
 		}
 		switch {
-		case err == io.EOF && c.State() != opcua.Closed:
+		case err == io.EOF && m.Tunnel.State() != opcua.Closed:
+			newMessenger, err := collector.Tunnels.newMessenger()
+			if err != nil {
+				return err
+			}
+			m.Tunnel = newMessenger.Tunnel
+			i = i - 1
 			continue
 		case errors.Is(err, ua.StatusBadSessionIDInvalid):
+			newMessenger, err := collector.Tunnels.newMessenger()
+			if err != nil {
+				return err
+			}
+			m.Tunnel = newMessenger.Tunnel
+			i = i - 1
 			continue
 		case errors.Is(err, ua.StatusBadSessionNotActivated):
+			newMessenger, err := collector.Tunnels.newMessenger()
+			if err != nil {
+				return err
+			}
+			m.Tunnel = newMessenger.Tunnel
+			i = i - 1
 			continue
 		case errors.Is(err, ua.StatusBadSecureChannelIDInvalid):
 			continue

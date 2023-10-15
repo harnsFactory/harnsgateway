@@ -333,17 +333,17 @@ func (collector *S7Collector) message(ctx context.Context, dataFrame *S7DataFram
 	}
 
 	var buf []byte
-	if err := collector.retry(func(dataFrame *S7DataFrame) error {
+	if err := collector.retry(func(tunnel *Messenger, dataFrame *S7DataFrame) error {
 		least, err := tunnel.AskAtLeast(dataFrame.DataFrame, dataFrame.ResponseDataFrame, 19)
 		if err != nil {
 			return s7runtime.ErrBadConn
 		}
 		buf, err = dataFrame.ValidateMessage(least)
 		if err != nil {
-			return s7runtime.ErrBadConn
+			return s7runtime.ErrServerBadResp
 		}
 		return nil
-	}, dataFrame); err != nil {
+	}, tunnel, dataFrame); err != nil {
 		klog.V(2).InfoS("Failed to connect s7 server by retry three times")
 		pvrCh <- &s7runtime.ParseVariableResult{Err: []error{err}}
 		return
@@ -352,11 +352,21 @@ func (collector *S7Collector) message(ctx context.Context, dataFrame *S7DataFram
 	pvrCh <- &s7runtime.ParseVariableResult{Err: nil, VariableSlice: dataFrame.ParseVariableValue(buf[21:])}
 }
 
-func (collector *S7Collector) retry(fun func(dataFrame *S7DataFrame) error, dataFrame *S7DataFrame) error {
+func (collector *S7Collector) retry(fun func(tunnel *Messenger, dataFrame *S7DataFrame) error, tunnel *Messenger, dataFrame *S7DataFrame) error {
 	for i := 0; i < 3; i++ {
-		err := fun(dataFrame)
-		if err == nil || !errors.Is(err, s7runtime.ErrBadConn) {
-			return err
+		err := fun(tunnel, dataFrame)
+		if err == nil {
+			return nil
+		} else if errors.Is(err, s7runtime.ErrBadConn) {
+			tunnel.Tunnel.Close()
+			newTunnel, err := collector.Tunnels.newMessenger()
+			if err != nil {
+				return err
+			}
+			tunnel.Tunnel = newTunnel.Tunnel
+			i = i - 1
+		} else {
+			klog.V(2).InfoS("Failed to connect modbus tcp server", "error", err)
 		}
 	}
 	return s7runtime.ErrManyRetry

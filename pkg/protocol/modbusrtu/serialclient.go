@@ -11,12 +11,13 @@ import (
 )
 
 type SerialClients struct {
-	Clients      *list.List
-	Max          int
-	Idle         int
-	Mux          *sync.Mutex
-	ConnRequests map[uint64]chan *SerialClient
-	NextRequest  uint64
+	newSerialClient func() (*SerialClient, error)
+	Clients         *list.List
+	Max             int
+	Idle            int
+	Mux             *sync.Mutex
+	ConnRequests    map[uint64]chan *SerialClient
+	NextRequest     uint64
 }
 
 func (scs *SerialClients) getClient(ctx context.Context) (*SerialClient, error) {
@@ -109,7 +110,7 @@ func (sc *SerialClient) AskAtLeast(request []byte, response []byte) (int, error)
 	rql, err := sc.Port.Write(request)
 	if err != nil {
 		klog.V(2).InfoS("Failed to write byte to series port", "error", err)
-		return 0, err
+		return 0, modbusrturuntime.ErrBadConn
 	}
 	klog.V(5).InfoS("Succeed to write byte to series port", "bytes", request, "length", rql)
 	// 设置读超时

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"go.bug.st/serial"
+	modbusruntime "harnsgateway/pkg/protocol/modbus/runtime"
 	modbusrturuntime "harnsgateway/pkg/protocol/modbusrtu/runtime"
 	"harnsgateway/pkg/runtime"
 	"harnsgateway/pkg/utils/binutil"
@@ -349,6 +350,17 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 		Mux:          &sync.Mutex{},
 		NextRequest:  1,
 		ConnRequests: make(map[uint64]chan *SerialClient, 0),
+		newSerialClient: func() (*SerialClient, error) {
+			newPort, err := serial.Open(device.Address, mode)
+			if err != nil {
+				klog.V(2).InfoS("Failed to connect serial port", "address", device.Address)
+				return nil, err
+			}
+			return &SerialClient{
+				Timeout: 1,
+				Port:    newPort,
+			}, nil
+		},
 	}
 
 	mtc := &ModbusRtuCollector{
@@ -428,17 +440,17 @@ func (collector *ModbusRtuCollector) message(ctx context.Context, dataFrame *Mod
 
 	defer collector.Clients.releaseClient(client)
 	var buf []byte
-	if err := collector.retry(func(dataFrame *ModBusRtuDataFrame) error {
+	if err := collector.retry(func(sc *SerialClient, dataFrame *ModBusRtuDataFrame) error {
 		least, err := client.AskAtLeast(dataFrame.DataFrame, dataFrame.ResponseDataFrame)
 		if err != nil {
-			return err
+			return modbusrturuntime.ErrBadConn
 		}
 		buf, err = dataFrame.ValidateMessage(least)
 		if err != nil {
-			return err
+			return modbusrturuntime.ErrServerBadResp
 		}
 		return nil
-	}, dataFrame); err != nil {
+	}, client, dataFrame); err != nil {
 		klog.V(2).InfoS("Failed to connect modbus rtu server by retry three times")
 		pvrCh <- &modbusrturuntime.ParseVariableResult{Err: []error{err}}
 		return
@@ -461,11 +473,21 @@ func (collector *ModbusRtuCollector) message(ctx context.Context, dataFrame *Mod
 	pvrCh <- &modbusrturuntime.ParseVariableResult{Err: nil, VariableSlice: dataFrame.ParseVariableValue(bb)}
 }
 
-func (collector *ModbusRtuCollector) retry(fun func(dataFrame *ModBusRtuDataFrame) error, dataFrame *ModBusRtuDataFrame) error {
+func (collector *ModbusRtuCollector) retry(fun func(sc *SerialClient, dataFrame *ModBusRtuDataFrame) error, sc *SerialClient, dataFrame *ModBusRtuDataFrame) error {
 	for i := 0; i < 3; i++ {
-		err := fun(dataFrame)
-		if err == nil || !errors.Is(err, modbusrturuntime.ErrBadConn) {
-			return err
+		err := fun(sc, dataFrame)
+		if err == nil {
+			return nil
+		} else if errors.Is(err, modbusruntime.ErrBadConn) {
+			sc.Port.Close()
+			newPort, err := collector.Clients.newSerialClient()
+			if err != nil {
+				return err
+			}
+			sc.Port = newPort.Port
+			i = i - 1
+		} else {
+			klog.V(2).InfoS("Failed to connect modbus tcp server", "error", err)
 		}
 	}
 	return modbusrturuntime.ErrManyRetry

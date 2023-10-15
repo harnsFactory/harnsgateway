@@ -2,9 +2,10 @@ package runtime
 
 import "errors"
 
-var ErrBadConn = errors.New("Tcp bad connection\n")
-var ErrTcpClosed = errors.New("Tcp closed\n")
-var ErrManyRetry = errors.New("Tcp connect retry more than three times\n")
+var ErrBadConn = errors.New("S7 bad connection\n")
+var ErrServerBadResp = errors.New("S7 server bad response\n")
+var ErrTcpClosed = errors.New("S7 closed\n")
+var ErrManyRetry = errors.New("S7 connect retry more than three times\n")
 var ErrDeviceType = errors.New("Error device type\n")
 var ErrConnectS7DeviceCotpMessage = errors.New("Error connect s7 passed cotp message\n")
 var ErrConnectS7DeviceS7COMMMessage = errors.New("Error connect s7 passed s7comm message\n")

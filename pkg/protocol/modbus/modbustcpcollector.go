@@ -442,7 +442,8 @@ func (collector *ModbusTcpCollector) message(ctx context.Context, dataFrame *Mod
 	}
 
 	var buf []byte
-	if err := collector.retry(func(dataFrame *ModBusDataFrame) error {
+
+	if err := collector.retry(func(tunnel *Messenger, dataFrame *ModBusDataFrame) error {
 		dataFrame.WriteTransactionId()
 		least, err := tunnel.AskAtLeast(dataFrame.DataFrame, dataFrame.ResponseDataFrame, 9)
 		if err != nil {
@@ -450,11 +451,11 @@ func (collector *ModbusTcpCollector) message(ctx context.Context, dataFrame *Mod
 		}
 		buf, err = dataFrame.ValidateMessage(least)
 		if err != nil {
-			return modbusruntime.ErrBadConn
+			return modbusruntime.ErrServerBadResp
 		}
 		return nil
-	}, dataFrame); err != nil {
-		klog.V(2).InfoS("Failed to connect modbus server by retry three times")
+	}, tunnel, dataFrame); err != nil {
+		klog.V(2).InfoS("Failed to connect modbus server", "error", err)
 		pvrCh <- &modbusruntime.ParseVariableResult{Err: []error{err}}
 		return
 	}
@@ -476,11 +477,21 @@ func (collector *ModbusTcpCollector) message(ctx context.Context, dataFrame *Mod
 	pvrCh <- &modbusruntime.ParseVariableResult{Err: nil, VariableSlice: dataFrame.ParseVariableValue(bb)}
 }
 
-func (collector *ModbusTcpCollector) retry(fun func(dataFrame *ModBusDataFrame) error, dataFrame *ModBusDataFrame) error {
+func (collector *ModbusTcpCollector) retry(fun func(tunnel *Messenger, dataFrame *ModBusDataFrame) error, tunnel *Messenger, dataFrame *ModBusDataFrame) error {
 	for i := 0; i < 3; i++ {
-		err := fun(dataFrame)
-		if err == nil || !errors.Is(err, modbusruntime.ErrBadConn) {
-			return err
+		err := fun(tunnel, dataFrame)
+		if err == nil {
+			return nil
+		} else if errors.Is(err, modbusruntime.ErrBadConn) {
+			tunnel.Tunnel.Close()
+			newTunnel, err := collector.Tunnels.newMessenger()
+			if err != nil {
+				return err
+			}
+			tunnel.Tunnel = newTunnel.Tunnel
+			i = i - 1
+		} else {
+			klog.V(2).InfoS("Failed to connect modbus tcp server", "error", err)
 		}
 	}
 	return modbusruntime.ErrManyRetry

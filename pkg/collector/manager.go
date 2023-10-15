@@ -240,6 +240,8 @@ func (m *Manager) Shutdown(context context.Context) error {
 		c.Destroy(context)
 	}
 
+	// todo join in closer
+	m.mqttClient.Disconnect(2000)
 	var errs []string
 	for i := len(m.closers); i > 0; i-- {
 		lc := m.closers[i-1]

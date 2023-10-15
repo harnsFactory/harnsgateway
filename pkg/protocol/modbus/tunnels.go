@@ -111,7 +111,7 @@ func (m *Messenger) AskAtLeast(request []byte, response []byte, min int) (int, e
 	_, err := m.Tunnel.Write(request)
 	if err != nil {
 		klog.V(2).InfoS("Failed to ask message", "error", err)
-		return 0, err
+		return 0, modbusruntime.ErrBadConn
 	}
 	// 设置读超时
 	deadLineTime := time.Now().Add(time.Duration(m.Timeout) * time.Second)
