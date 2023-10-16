@@ -72,7 +72,6 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	mqttOption.SetPassword(o.MqttPassword)
 	mqttOption.SetOrderMatters(false)
 	mqttOption.SetClientID("harns-gateway-" + o.Port)
-	// mqttOption.SetConnectTimeout()
 	mqttClient := mqtt.NewClient(mqttOption)
 	klog.V(1).InfoS("Connected to MQTT", "servers", o.MqttBrokerUrls)
 	if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
