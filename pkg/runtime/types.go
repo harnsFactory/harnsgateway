@@ -1,9 +1,15 @@
 package runtime
 
 import (
+	"context"
 	"net/url"
 	"time"
 )
+
+type LabeledCloser struct {
+	Label  string
+	Closer func(context.Context) error
+}
 
 type ResponseModel struct {
 	Devices interface{} `json:"devices,omitempty"`

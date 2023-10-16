@@ -16,11 +16,6 @@ import (
 	"time"
 )
 
-type labeledCloser struct {
-	label  string
-	closer func(context.Context) error
-}
-
 type Option func(*Manager)
 
 // func WithDeviceManager(protocol string, manager DeviceManager) Option {
@@ -39,7 +34,7 @@ type Manager struct {
 	collectorReturnCh map[string]chan *runtime.ParseVariableResult
 	stopCh            <-chan struct{}
 	restartCh         <-chan string
-	closers           []labeledCloser
+	closers           []runtime.LabeledCloser
 }
 
 func NewCollectorManager(store *generic.Store, mqttClient mqtt.Client, stop <-chan struct{}, opts ...Option) *Manager {
@@ -222,8 +217,7 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 							v.(runtime.Device).SetCollectStatus(false)
 						}
 					} else {
-						// todo
-						klog.V(2).InfoS("Stopped to collect data", "deviceId", deviceId)
+						klog.V(2).InfoS("Failed to load device", "deviceId", deviceId)
 					}
 				} else {
 					klog.V(2).InfoS("Stopped to collect data", "deviceId", deviceId)
@@ -240,13 +234,12 @@ func (m *Manager) Shutdown(context context.Context) error {
 		c.Destroy(context)
 	}
 
-	// todo join in closer
 	m.mqttClient.Disconnect(2000)
 	var errs []string
 	for i := len(m.closers); i > 0; i-- {
 		lc := m.closers[i-1]
-		if err := lc.closer(context); err != nil {
-			klog.V(2).InfoS("Failed to stopped subsystem", "subsystem", lc.label)
+		if err := lc.Closer(context); err != nil {
+			klog.V(2).InfoS("Failed to stopped Dependencies service", "service", lc.Label)
 			errs = append(errs, err.Error())
 		}
 	}
