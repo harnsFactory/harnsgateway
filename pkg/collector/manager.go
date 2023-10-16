@@ -18,12 +18,6 @@ import (
 
 type Option func(*Manager)
 
-// func WithDeviceManager(protocol string, manager DeviceManager) Option {
-// 	return func(m *Manager) {
-// 		m.deviceManager[protocol] = manager
-// 	}
-// }
-
 type Manager struct {
 	mqttClient        mqtt.Client
 	mu                *sync.Mutex
