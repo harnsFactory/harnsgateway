@@ -1,10 +1,12 @@
 package options
 
 import (
+	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/spf13/pflag"
 	"harnsgateway/cmd/gateway/config"
 	"harnsgateway/pkg/collector"
+	"harnsgateway/pkg/gateway"
 	"harnsgateway/pkg/generic"
 	baseoptions "harnsgateway/pkg/generic/options"
 	"harnsgateway/pkg/storage"
@@ -62,6 +64,11 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 
 func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	c := &config.Config{}
+	gatewayMgr := gateway.NewGatewayManager(stopCh)
+	gatewayMgr.Init()
+	c.GatewayMgr = gatewayMgr
+
+	gatewayMeta, _ := gatewayMgr.GetGatewayMeta()
 	store, _ := generic.NewStore(storage.StoreGroupToString[storage.StoreGroupDevice], storage.Devices, generic.DeviceTypeObjectMap)
 	// mqtt
 	mqttOption := mqtt.NewClientOptions()
@@ -71,17 +78,16 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 	mqttOption.SetUsername(o.MqttUsername)
 	mqttOption.SetPassword(o.MqttPassword)
 	mqttOption.SetOrderMatters(false)
-	mqttOption.SetClientID("harns-gateway-" + o.Port)
+	mqttOption.SetClientID(fmt.Sprintf("gateway-id-%s", gatewayMeta.ID))
 	mqttClient := mqtt.NewClient(mqttOption)
 	klog.V(1).InfoS("Connected to MQTT", "servers", o.MqttBrokerUrls)
 	if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
 		klog.ErrorS(token.Error(), "Failed to connect MQTT", "servers", o.MqttBrokerUrls)
 		return nil, token.Error()
 	}
-
-	collectorMgr := collector.NewCollectorManager(store, mqttClient, stopCh)
-
+	collectorMgr := collector.NewCollectorManager(store, mqttClient, gatewayMeta, stopCh)
 	collectorMgr.Init()
+
 	c.CollectorMgr = collectorMgr
 	c.KeyFile = o.KeyFile
 	c.CertFile = o.CertFile

@@ -8,14 +8,17 @@ type StoreGroup byte
 
 const (
 	StoreGroupDevice StoreGroup = iota
+	StoreGroupGateway
 )
 
 var (
 	StoreGroupToString = map[StoreGroup]string{
-		StoreGroupDevice: "device",
+		StoreGroupDevice:  "device",
+		StoreGroupGateway: "gateway",
 	}
 	StoreGroupFromString = map[string]StoreGroup{
-		"device": StoreGroupDevice,
+		"device":  StoreGroupDevice,
+		"gateway": StoreGroupGateway,
 	}
 )
 
@@ -23,6 +26,7 @@ var (
 const (
 	// device
 	Devices = "devices"
+	Gateway = "gateway"
 )
 
 type Getter interface {

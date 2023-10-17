@@ -46,6 +46,10 @@ func (fc *FsClient) Init(sg StoreGroup) {
 		dirs = []string{
 			Devices,
 		}
+	case StoreGroupGateway:
+		dirs = []string{
+			"",
+		}
 	default:
 		klog.Fatalf("Unsupported store group %d", sg)
 	}

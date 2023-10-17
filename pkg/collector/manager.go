@@ -6,6 +6,7 @@ import (
 	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"harnsgateway/pkg/apis"
+	"harnsgateway/pkg/gateway"
 	"harnsgateway/pkg/generic"
 	"harnsgateway/pkg/runtime"
 	v1 "harnsgateway/pkg/v1"
@@ -19,6 +20,7 @@ import (
 type Option func(*Manager)
 
 type Manager struct {
+	gatewayMeta       *gateway.GatewayMeta
 	mqttClient        mqtt.Client
 	mu                *sync.Mutex
 	deviceManager     map[string]DeviceManager
@@ -31,8 +33,9 @@ type Manager struct {
 	closers           []runtime.LabeledCloser
 }
 
-func NewCollectorManager(store *generic.Store, mqttClient mqtt.Client, stop <-chan struct{}, opts ...Option) *Manager {
+func NewCollectorManager(store *generic.Store, mqttClient mqtt.Client, gatewayMeta *gateway.GatewayMeta, stop <-chan struct{}, opts ...Option) *Manager {
 	m := &Manager{
+		gatewayMeta:       gatewayMeta,
 		mqttClient:        mqttClient,
 		mu:                &sync.Mutex{},
 		devices:           &sync.Map{},
@@ -173,7 +176,7 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 	defer m.mu.Unlock()
 	m.collectors[obj.GetID()] = collector
 	m.collectorReturnCh[obj.GetID()] = results
-	topic := fmt.Sprintf("data/v1/%s", obj.GetID()[strings.Index(obj.GetID(), ".")+1:])
+	topic := fmt.Sprintf("data/%s/v1/%s", m.gatewayMeta.ID, obj.GetID())
 	collector.Collect(context.Background())
 	go func(deviceId string, ch chan *runtime.ParseVariableResult) {
 		for {

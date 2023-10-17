@@ -8,6 +8,7 @@ import (
 	"harnsgateway/cmd/gateway/config"
 	"harnsgateway/cmd/gateway/options"
 	"harnsgateway/pkg/collector"
+	"harnsgateway/pkg/gateway"
 	"harnsgateway/pkg/generic"
 	"k8s.io/klog/v2"
 	"net/http"
@@ -41,6 +42,7 @@ func NewServer(router *gin.Engine, o *options.Options, config *config.Config) (*
 func (s *Server) InstallHandlers() {
 	v1 := s.Router.Group("/api/v1")
 	collector.InstallHandler(v1, s.Config.CollectorMgr)
+	gateway.InstallHandler(v1, s.Config.GatewayMgr)
 }
 
 func (s *Server) Serve() (func(ctx context.Context), error) {

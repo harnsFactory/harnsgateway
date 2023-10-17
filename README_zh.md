@@ -34,10 +34,11 @@ HarnsGateway 可以安装在嵌入式设备上作为硬网关采集工业数据,
 例如 **连接ModbusTcp设备**
 
 1. 打开ModbusTcp模拟软件(ModSim32) 并且更新如下参数: deviceId = 1,functionCode =
-   3,并且设置第一个寄存器的值等于188.</br>[stepOne](https://postimg.cc/sBFyrN2M) </br>然后通过502端口启动服务.
-2. 在harnsGateway上创建一个ModbusTcp设备.</br> [stepTow.png](https://postimg.cc/svYFZdpy)
-3. 订阅MQTT topic.</br> [stepThree.png](https://postimg.cc/ppTGRwqq) </br>Topic为 'data/v1/{deviceId}'.
-4. 删除设备.
+   3,并且设置第一个寄存器的值等于188.</br>[第一步](https://postimg.cc/sBFyrN2M) </br>然后通过502端口启动服务.
+2. 在harnsGateway上创建一个ModbusTcp设备([接口文档](apis/create-modbustcp-device.yaml)).设备的id属性会在MQTT topic中使用.</br> [第二步](https://postimg.cc/svYFZdpy)
+3. 获取harnsGateway元信息( [接口文档](apis/gateway.yaml) ).网关的id属性会在MQTT topic中使用.</br> [第三步](https://postimg.cc/GHYxf9zP)
+4. 订阅MQTT topic.</br> [第四步](https://postimg.cc/ppTGRwqq) </br>Topic为'data/{gatewayId}/v1/{deviceId}'.
+5. 删除设备.
 
 ## 如何启动测试用例
 
