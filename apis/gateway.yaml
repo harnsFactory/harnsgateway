@@ -1,0 +1,53 @@
+openapi: 3.0.1
+info:
+  description: "API defining resources and operations for configuring, reading and managing Device."
+  version: "0.0.3"
+  title: "Gateway Manager API"
+servers:
+  - url: "/api/v1"
+tags:
+  - name: Gateway
+    description: Get gateway meta.
+paths:
+  /gatewayMeta:
+    get:
+      tags:
+        - Gateway
+      summary: Get the gateway information.
+      description: Get the gateway information.
+      operationId: getGateway
+      responses:
+        200:
+          description: The Gateway
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: ETag hash of the resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gateway'
+
+components:
+  schemas:
+    Gateway:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The gateway's name.
+          default: harnsgateway
+          pattern: '[\p{L}_0-9_\. ]+'
+          example: harnsgateway
+        id:
+          type: string
+          description: The gateway's id.
+          maxLength: 64
+          example: f9f7d42d40b2415d90ed79a242292337
+        eTag:
+          type: string
+          maxLength: 64
+          pattern: '[a-z0-9]+'
+          description: >-
+            The object eTag string.

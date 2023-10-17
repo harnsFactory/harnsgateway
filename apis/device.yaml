@@ -1,0 +1,165 @@
+openapi: 3.0.1
+info:
+  description: "API defining resources and operations for configuring, reading and managing Device."
+  version: "0.0.3"
+  title: "Device Manager API"
+servers:
+  - url: "/api/v1"
+tags:
+  - name: Device
+    description: Managing Device
+paths:
+  /devices:
+    get:
+      tags:
+        - Devices
+      summary: List all devices
+      operationId: listDevices
+      parameters:
+        - name: filter
+          in: query
+          description: |-
+            Specifies the additional filtering criteria.
+            Thing type supports the following filter fields:
+            - id
+            - name
+            
+            For **name**, except normal json format, the following functions are supported: `eq`, `in`, `contains`, `startsWith` and `endsWith`.
+            
+            For example:
+            
+            ``` 
+            {"name": "modbus"} 
+            ```
+            ``` 
+            {"name": {"eq": "modbus"}} 
+            ```
+          schema:
+            type: string
+        - name: exploded
+          in: query
+          description: Specifies if the device should include all of it's external information such as variables. Default is false.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        200:
+          description: Array of devices matched the filter criterias
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceArray'
+        400:
+          description: Invalid Request.
+        500:
+          description: Internal Server Error.
+  /devices/{id}:
+    get:
+      tags:
+        - Device
+      summary: Get the Device
+      description: Get the Device information.
+      operationId: getDevice
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier.
+          required: true
+          schema:
+            maxLength: 32
+            minLength: 32
+            pattern: '[0-9A-F]{32}'
+            type: string
+        - name: exploded
+          in: query
+          description: Specifies if the device should include all of it's external information such as variables. Default is false.
+          required: false
+          schema:
+            default: false
+            type: boolean
+      responses:
+        404:
+          description: Not Found.
+        200:
+          description: The device.
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: ETag hash of the resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+    delete:
+      tags:
+        - Device
+      summary: Delete the Device
+      description: Device been deleted and stopped collect data.
+      operationId: deleteDevice
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier
+          required: true
+          schema:
+            maxLength: 32
+            minLength: 32
+            pattern: '[0-9A-F]{32}'
+            type: string
+        - name: If-Match
+          in: header
+          description: Last known version to facilitate optimistic locking
+          required: true
+          schema:
+            type: string
+      responses:
+        400:
+          description: Invalid Request.
+        404:
+          description: Not Found.
+        200:
+          description: The device
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: ETag hash of the resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+
+components:
+  schemas:
+    DeviceArray:
+      type: object
+      properties:
+        devices:
+          type: array
+          items:
+            $ref: '#/components/schemas/Device'
+    Device:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: The device's name.
+          minLength: 1
+          maxLength: 128
+          pattern: '[\p{L}_0-9_\. ]+'
+          example: 模拟modbusTcp服务
+        deviceCode:
+          type: string
+          description: The device's code.
+          maxLength: 256
+          example: abcdedkfedfadfed
+        deviceType:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '[a-z0-9]+'
+          description: >-
+            The device type such as modbusTcp or opcUa 、s71500.
