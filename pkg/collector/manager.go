@@ -205,7 +205,7 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 
 							marshal, _ := json.Marshal(publishData)
 							token := m.mqttClient.Publish(topic, 1, false, marshal)
-							if token.WaitTimeout(3*time.Second) && token.Error() == nil {
+							if token.WaitTimeout(mqttTimeout) && token.Error() == nil {
 								klog.V(5).InfoS("Succeed to publish MQTT", "topic", topic, "data", publishData)
 							} else {
 								klog.V(1).InfoS("Failed to publish MQTT", "topic", topic, "err", token.Error())
