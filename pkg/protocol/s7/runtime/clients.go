@@ -1,9 +1,8 @@
-package s7
+package runtime
 
 import (
 	"container/list"
 	"context"
-	s7runtime "harnsgateway/pkg/protocol/s7/runtime"
 	"io"
 	"k8s.io/klog/v2"
 	"net"
@@ -12,7 +11,7 @@ import (
 )
 
 type Tunnels struct {
-	newMessenger func() (*Messenger, error)
+	NewMessenger func() (*Messenger, error)
 	Messengers   *list.List
 	Max          int
 	Idle         int
@@ -21,7 +20,7 @@ type Tunnels struct {
 	NextRequest  uint64
 }
 
-func (t *Tunnels) getTunnel(ctx context.Context) (*Messenger, error) {
+func (t *Tunnels) GetMessenger(ctx context.Context) (*Messenger, error) {
 	select {
 	default:
 	case <-ctx.Done():
@@ -58,13 +57,13 @@ func (t *Tunnels) getTunnel(ctx context.Context) (*Messenger, error) {
 		return nil, ctx.Err()
 	case m, ok := <-mCh:
 		if !ok {
-			return nil, s7runtime.ErrTcpClosed
+			return nil, ErrTcpClosed
 		}
 		return m, nil
 	}
 }
 
-func (t *Tunnels) releaseTunnel(messenger *Messenger) {
+func (t *Tunnels) ReleaseMessenger(messenger *Messenger) {
 	t.Mux.Lock()
 	defer t.Mux.Unlock()
 	if t.Idle == 0 && len(t.ConnRequests) > 0 {
@@ -111,7 +110,7 @@ func (m *Messenger) AskAtLeast(request []byte, response []byte, min int) (int, e
 	_, err := m.Tunnel.Write(request)
 	if err != nil {
 		klog.V(2).InfoS("Failed to ask message", "error", err)
-		return 0, s7runtime.ErrBadConn
+		return 0, ErrBadConn
 	}
 	// 设置读超时
 	deadLineTime := time.Now().Add(time.Duration(m.Timeout) * time.Second)

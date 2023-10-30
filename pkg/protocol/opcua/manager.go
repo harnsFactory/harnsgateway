@@ -29,14 +29,19 @@ func (m *OpcUaDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Dev
 			},
 			DeviceCode:    opcUaDevice.DeviceCode,
 			DeviceType:    opcUaDevice.DeviceType,
+			DeviceModel:   opcUaDevice.DeviceModel,
 			CollectStatus: false,
 		},
 		CollectorCycle:   opcUaDevice.CollectorCycle,
 		VariableInterval: opcUaDevice.VariableInterval,
-		Address:          opcUaDevice.Address,
-		Port:             opcUaDevice.Port,
-		Username:         opcUaDevice.Username,
-		Password:         opcUaDevice.Password,
+		Address: &opcuaruntime.Address{
+			Location: opcUaDevice.Address.Location,
+			Option: &opcuaruntime.Option{
+				Port:     opcUaDevice.Address.Option.Port,
+				Username: opcUaDevice.Address.Option.Username,
+				Password: opcUaDevice.Address.Option.Password,
+			},
+		},
 	}
 	if len(opcUaDevice.Variables) > 0 {
 		for _, variable := range opcUaDevice.Variables {
@@ -54,8 +59,9 @@ func (m *OpcUaDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Dev
 
 func (m *OpcUaDeviceManager) DeleteDevice(device runtime.Device) (runtime.Device, error) {
 	return &opcuaruntime.OpcUaDevice{DeviceMeta: runtime.DeviceMeta{
-		ObjectMeta: runtime.ObjectMeta{ID: device.GetID(), Version: device.GetVersion()},
-		DeviceType: device.GetDeviceType(),
-		DeviceCode: device.GetDeviceCode(),
+		ObjectMeta:  runtime.ObjectMeta{ID: device.GetID(), Version: device.GetVersion()},
+		DeviceType:  device.GetDeviceType(),
+		DeviceCode:  device.GetDeviceCode(),
+		DeviceModel: device.GetDeviceModel(),
 	}}, nil
 }

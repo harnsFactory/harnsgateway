@@ -25,11 +25,11 @@ const (
 	RtuOverTcp
 )
 
-var ModbusModelToString = map[ModbusModel]string{
-	Tcp:        "modbusTcp",
-	Rtu:        "modbusRtu",
-	RtuOverTcp: "modbusRtuOverTcp",
-}
+//	var ModbusModelToString = map[ModbusModel]string{
+//		Tcp:        "modbusTcp",
+//		Rtu:        "modbusRtu",
+//		RtuOverTcp: "modbusRtuOverTcp",
+//	}
 var StringToModbusModel = map[string]ModbusModel{
 	"modbusTcp":        Tcp,
 	"modbusRtu":        Rtu,

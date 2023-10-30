@@ -31,13 +31,21 @@ func (v *Variable) SetVariableName(name string) {
 
 type OpcUaDevice struct {
 	runtime.DeviceMeta
-	CollectorCycle   uint        `json:"collectorCycle"`   // 采集周期
-	VariableInterval uint        `json:"variableInterval"` // 变量间隔
-	Address          string      `json:"address"`          // IP地址\串口地址
-	Port             uint        `json:"port"`             // 端口号
-	Username         string      `json:"username,omitempty"`
-	Password         string      `json:"password,omitempty"`
+	CollectorCycle   uint        `json:"collectorCycle"`                    // 采集周期
+	VariableInterval uint        `json:"variableInterval"`                  // 变量间隔
+	Address          *Address    `json:"address"`                           // IP地址
 	Variables        []*Variable `json:"variables" binding:"required,dive"` // 自定义变量
+}
+
+type Address struct {
+	Location string  `json:"location"` // 地址路径
+	Option   *Option `json:"option"`   // 地址其他参数
+}
+
+type Option struct {
+	Port     int    `json:"port,omitempty"`     // 端口号
+	Username string `json:"username,omitempty"` // 用户名
+	Password string `json:"password,omitempty"` // 密码
 }
 
 type VariableSlice []*Variable

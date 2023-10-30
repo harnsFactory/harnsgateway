@@ -29,6 +29,7 @@ func (m *S7DeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device
 			},
 			DeviceCode:    s7Device.DeviceCode,
 			DeviceType:    s7Device.DeviceType,
+			DeviceModel:   s7Device.DeviceModel,
 			CollectStatus: false,
 		},
 		CollectorCycle:   s7Device.CollectorCycle,
@@ -54,8 +55,9 @@ func (m *S7DeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device
 
 func (m *S7DeviceManager) DeleteDevice(device runtime.Device) (runtime.Device, error) {
 	return &s7runtime.S7Device{DeviceMeta: runtime.DeviceMeta{
-		ObjectMeta: runtime.ObjectMeta{ID: device.GetID(), Version: device.GetVersion()},
-		DeviceType: device.GetDeviceType(),
-		DeviceCode: device.GetDeviceCode(),
+		ObjectMeta:  runtime.ObjectMeta{ID: device.GetID(), Version: device.GetVersion()},
+		DeviceType:  device.GetDeviceType(),
+		DeviceCode:  device.GetDeviceCode(),
+		DeviceModel: device.GetDeviceModel(),
 	}}, nil
 }
