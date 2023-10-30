@@ -1,10 +1,8 @@
 package runtime
 
 import (
-	"harnsgateway/pkg/protocol/modbus"
 	"harnsgateway/pkg/runtime"
 	"harnsgateway/pkg/utils/binutil"
-	"k8s.io/klog/v2"
 )
 
 type Variable struct {
@@ -95,58 +93,10 @@ type ModBusDataFrame struct {
 	Variables         []*VariableParse
 }
 
-func (df *ModBusDataFrame) GenerateReadMessage(slave uint, functionCode uint8, startAddress uint, maxDataSize uint, variables []*modbus.VariableParse, MemoryLayout runtime.MemoryLayout) {
-	df.TransactionId = 0
-	df.FunctionCode = functionCode
-	df.StartAddress = startAddress
-	df.MaxDataSize = maxDataSize
-	// 00 01 00 00 00 06 18 03 00 02 00 02
-	// 00 01  此次通信事务处理标识符，一般每次通信之后将被要求加1以区别不同的通信数据报文
-	// 00 00  表示协议标识符，00 00为modbus协议
-	// 00 06  数据长度，用来指示接下来数据的长度，单位字节
-	// 18  设备地址，用以标识连接在串行线或者网络上的远程服务端的地址。以上七个字节也被称为modbus报文头
-	// 03  功能码，此时代码03为读取保持寄存器数据
-	// 00 02  起始地址
-	// 00 02  寄存器数量(word数量)/线圈数量
-	message := make([]byte, 12)
-
-	binutil.WriteUint16(message[2:], 0) // 协议版本
-	binutil.WriteUint16(message[4:], 6) // 剩余长度
-	message[6] = byte(slave)
-	message[7] = functionCode
-	binutil.WriteUint16(message[8:], uint16(startAddress))
-	binutil.WriteUint16(message[10:], uint16(df.MaxDataSize))
-	df.DataFrame = message
-	df.ResponseDataFrame = make([]byte, 260)
-}
-
 func (df *ModBusDataFrame) WriteTransactionId() {
 	df.TransactionId++
 	id := df.TransactionId
 	binutil.WriteUint16(df.DataFrame, id)
-}
-
-func (df *ModBusDataFrame) ValidateMessage(least int) ([]byte, error) {
-	buf := df.ResponseDataFrame[:least]
-
-	transactionId := binutil.ParseUint16(buf[:])
-	if transactionId != df.TransactionId {
-		klog.V(2).InfoS("Failed to match message transaction id", "request transactionId", df.TransactionId, "response transactionId", transactionId)
-		return nil, ErrMessageTransaction
-	}
-
-	length := binutil.ParseUint16(buf[4:])
-	if int(length)+6 > least {
-		klog.V(2).InfoS("Failed to get message enough length")
-		return nil, ErrMessageDataLengthNotEnough
-	}
-
-	functionCode := buf[7]
-	if functionCode&0x80 > 0 {
-		klog.V(2).InfoS("Failed to parse modbus tcp message", "error code", functionCode-128)
-		return nil, ErrMessageFunctionCodeError
-	}
-	return buf, nil
 }
 
 func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {

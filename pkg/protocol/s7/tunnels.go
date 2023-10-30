@@ -3,7 +3,6 @@ package s7
 import (
 	"container/list"
 	"context"
-	modbusruntime "harnsgateway/pkg/protocol/modbus/runtime"
 	s7runtime "harnsgateway/pkg/protocol/s7/runtime"
 	"io"
 	"k8s.io/klog/v2"
@@ -59,7 +58,7 @@ func (t *Tunnels) getTunnel(ctx context.Context) (*Messenger, error) {
 		return nil, ctx.Err()
 	case m, ok := <-mCh:
 		if !ok {
-			return nil, modbusruntime.ErrTcpClosed
+			return nil, s7runtime.ErrTcpClosed
 		}
 		return m, nil
 	}
