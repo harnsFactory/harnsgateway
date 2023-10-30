@@ -14,5 +14,5 @@ var DeviceManagers = map[string]DeviceManager{
 }
 
 const (
-	mqttTimeout = 3 * time.Second
+	mqttTimeout = 1 * time.Second
 )
