@@ -1,7 +1,7 @@
 package model
 
 import (
-	modbus "harnsgateway/pkg/protocol/modbusall/runtime"
+	modbus "harnsgateway/pkg/protocol/modbus/runtime"
 	"harnsgateway/pkg/runtime"
 )
 

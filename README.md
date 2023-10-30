@@ -32,11 +32,11 @@ It can also be run as a service on the edge IoT platform to as soft gateway.
 
 ## How to Use
 
-example **Connect ModbusTcp device**
+example **Connect Modbus device**
 
-1. Started modbusTcp simulator(ModSim32) And update some parameters: deviceId = 1,functionCode = 3,And set first address
+1. Started modbus simulator(ModSim32) And update some parameters: deviceId = 1,functionCode = 3,And set first address
    value = 188.</br>[stepOne](https://postimg.cc/sBFyrN2M) </br>Then start service on port 502.
-2. Create modbusTcp( [api doc](apis/create-modbustcp-device.yaml) )device in harnsGateway.The device id property userd in MQTT topic.</br> [stepTow.png](https://postimg.cc/svYFZdpy)
+2. Create modbus( [api doc](apis/create-modbus-device.yaml) )device in harnsGateway.The device id property userd in MQTT topic.</br> [stepTow.png](https://postimg.cc/svYFZdpy)
 3. Get gateway meta information( [api doc](apis/gateway.yaml) ).The gateway id property used in MQTT topic.</br> [stepThree.png](https://postimg.cc/GHYxf9zP)
 4. Subscript MQTT topic.</br> [stepFour.png](https://postimg.cc/ppTGRwqq) </br>Topic is 'data/{gatewayId}/v1/{deviceId}'.
 5. Delete the Device.

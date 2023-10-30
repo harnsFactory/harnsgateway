@@ -3,7 +3,7 @@ package model
 import (
 	"container/list"
 	"fmt"
-	modbus "harnsgateway/pkg/protocol/modbusall/runtime"
+	modbus "harnsgateway/pkg/protocol/modbus/runtime"
 	"harnsgateway/pkg/runtime"
 	"harnsgateway/pkg/utils/binutil"
 	"k8s.io/klog/v2"

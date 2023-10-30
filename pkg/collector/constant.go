@@ -1,14 +1,14 @@
 package collector
 
 import (
-	"harnsgateway/pkg/protocol/modbusall"
+	"harnsgateway/pkg/protocol/modbus"
 	"harnsgateway/pkg/protocol/opcua"
 	"harnsgateway/pkg/protocol/s7"
 	"time"
 )
 
 var DeviceManagers = map[string]DeviceManager{
-	"modbus": &modbusall.ModbusDeviceManager{},
+	"modbus": &modbus.ModbusDeviceManager{},
 	"opcUa":  &opcua.OpcUaDeviceManager{},
 	"s71500": &s7.S7DeviceManager{},
 }

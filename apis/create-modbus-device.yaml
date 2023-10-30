@@ -20,7 +20,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ModbusTcpDevice'
+              $ref: '#/components/schemas/ModbusDevice'
         required: true
       responses:
         201:
@@ -33,14 +33,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ModbusTcpDevice'
+                $ref: '#/components/schemas/ModbusDevice'
         400:
           description: Invalid request.
         500:
           description: Internal Server Error.
 components:
   schemas:
-    ModbusTcpDevice:
+    ModbusDevice:
       type: object
       required:
         - name
@@ -51,7 +51,7 @@ components:
           minLength: 1
           maxLength: 128
           pattern: '[\p{L}_0-9_\. ]+'
-          example: 模拟modbustcp服务
+          example: 模拟modbus服务
         deviceCode:
           type: string
           description: 设备编码.
@@ -59,10 +59,15 @@ components:
           example: abcdfsdfe
         deviceType:
           type: string
-          minLength: 1
-          maxLength: 128
-          pattern: '[a-z0-9]+'
+          default: modbus
           description: 设备类型.
+        deviceModel:
+          type: string
+          enum:
+            - modbusTcp
+            - modbusRtu
+            - modbusRtuOverTcp
+          description: 设备型号.
           example: modbusTcp
         collectorCycle:
           type: integer
@@ -73,9 +78,57 @@ components:
           type: integer
           description: 变量间隔.
           nullable: true
-        adress:
-          type: string
-          description: IP地址.
+        address:
+          type: object
+          properties:
+            location:
+              type: string
+              description: IP地址/串口地址.
+            option:
+              type: object
+              description: 其他参数
+              properties:
+                port:
+                  type: integer
+                  description: IP地址的端口.
+                  example: 502
+                baudRate:
+                  type: integer
+                  description: 波特率.
+                  enum:
+                    - 1200
+                    - 2400
+                    - 4800
+                    - 9600
+                    - 19200
+                    - 38400
+                    - 57600
+                    - 115200
+                  example: 9600
+                DataBits:
+                  type: integer
+                  description: 数据位.
+                  enum:
+                    - 5
+                    - 6
+                    - 7
+                    - 8
+                  example: 502
+                parity:
+                  type: string
+                  description: 校验位.
+                  enum:
+                    - noParity
+                    - oddParity
+                    - evenParity
+                stopBits:
+                  type: string
+                  description: 停止位.
+                  enum:
+                    - 1
+                    - 1.5
+                    - 2
+          description: Modbus服务器参数.
         port:
           type: integer
           description: PORT端口.
@@ -102,7 +155,7 @@ components:
             properties:
               name:
                 type: string
-                description: 变量名称
+                description: 变量名称.
                 example: A
               datatype:
                 type: string

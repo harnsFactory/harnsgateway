@@ -27,19 +27,7 @@ type ModbusVariable struct {
 	DefaultValue interface{} `json:"defaultValue,omitempty"`                                        // 默认值
 }
 
-// type ModBusDevice struct {
-// 	DeviceMeta
-// 	CollectorCycle   uint              `json:"collectorCycle" binding:"required"` // 采集周期
-// 	VariableInterval uint              `json:"variableInterval,omitempty"`        // 变量间隔
-// 	Address          string            `json:"address" binding:"required"`        // IP地址\串口地址
-// 	Port             uint              `json:"port" binding:"required"`
-// 	Slave            uint              `json:"slave" binding:"required"`                                  // 下位机号
-// 	MemoryLayout     string            `json:"memoryLayout" binding:"required,oneof=ABCD BADC CDAB DCBA"` // 内存布局 DCBA CDAB BADC ABCD
-// 	PositionAddress  uint              `json:"positionAddress,omitempty"`                                 // 起始地址
-// 	Variables        []*ModbusVariable `json:"variables" binding:"required,dive"`                         // 自定义变量
-// }
-
-type ModBusDeviceAll struct {
+type ModBusDevice struct {
 	DeviceMeta
 	CollectorCycle   uint              `json:"collectorCycle" binding:"required"`                         // 采集周期
 	VariableInterval uint              `json:"variableInterval,omitempty"`                                // 变量间隔
@@ -102,19 +90,3 @@ type S7Device struct {
 	Slot             uint8         `json:"slot,omitempty"`                    // 密码
 	Variables        []*S7Variable `json:"variables" binding:"required,dive"` // 自定义变量
 }
-
-// modbus-rtu
-// type ModBusRtuDevice struct {
-// 	DeviceMeta
-// 	CollectorCycle   uint              `json:"collectorCycle" binding:"required"`                         // 采集周期
-// 	VariableInterval uint              `json:"variableInterval,omitempty"`                                // 变量间隔
-// 	Address          string            `json:"address" binding:"required"`                                // IP地址\串口地址
-// 	Slave            uint              `json:"slave" binding:"required"`                                  // 下位机号
-// 	MemoryLayout     string            `json:"memoryLayout" binding:"required,oneof=ABCD BADC CDAB DCBA"` // 内存布局 DCBA CDAB BADC ABCD
-// 	PositionAddress  uint              `json:"positionAddress,omitempty"`                                 // 起始地址
-// 	BaudRate         int               `json:"baudRate,omitempty"`                                        // 波特率 (1200,2400,4800,9600,19200,38400,57600,115200)
-// 	DataBits         int               `json:"dataBits,omitempty"`                                        // 数据位 (must be 5, 6, 7 or 8)
-// 	Parity           string            `json:"parity,omitempty"`                                          // 校验位 (无校验,奇校验,偶校验)
-// 	StopBits         string            `json:"stopBits,omitempty"`                                        // 停止位 (must be 1, 1.5, 2)
-// 	Variables        []*ModbusVariable `json:"variables" binding:"required,dive"`                         // 自定义变量
-// }

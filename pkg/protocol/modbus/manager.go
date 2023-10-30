@@ -1,7 +1,7 @@
-package modbusall
+package modbus
 
 import (
-	modbus "harnsgateway/pkg/protocol/modbusall/runtime"
+	modbus "harnsgateway/pkg/protocol/modbus/runtime"
 	"harnsgateway/pkg/runtime"
 	"harnsgateway/pkg/utils/randutil"
 	"harnsgateway/pkg/utils/uuidutil"
@@ -14,7 +14,7 @@ type ModbusDeviceManager struct {
 }
 
 func (m *ModbusDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device, error) {
-	modbusDevice, ok := deviceType.(*v1.ModBusDeviceAll)
+	modbusDevice, ok := deviceType.(*v1.ModBusDevice)
 	if !ok {
 		return nil, modbus.ErrDeviceType
 	}

@@ -3,7 +3,7 @@ package model
 import (
 	"container/list"
 	"go.bug.st/serial"
-	modbus "harnsgateway/pkg/protocol/modbusall/runtime"
+	modbus "harnsgateway/pkg/protocol/modbus/runtime"
 	"harnsgateway/pkg/runtime"
 	"harnsgateway/pkg/utils/binutil"
 	"harnsgateway/pkg/utils/crcutil"

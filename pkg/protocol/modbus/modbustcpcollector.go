@@ -1,10 +1,10 @@
-package modbusall
+package modbus
 
 import (
 	"context"
 	"errors"
-	"harnsgateway/pkg/protocol/modbusall/model"
-	modbus "harnsgateway/pkg/protocol/modbusall/runtime"
+	"harnsgateway/pkg/protocol/modbus/model"
+	modbus "harnsgateway/pkg/protocol/modbus/runtime"
 	"harnsgateway/pkg/runtime"
 	"harnsgateway/pkg/utils/binutil"
 	"harnsgateway/pkg/utils/crcutil"
