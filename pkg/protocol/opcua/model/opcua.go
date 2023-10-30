@@ -16,6 +16,7 @@ type OpcUa struct {
 
 func (o *OpcUa) NewClients(address *opc.Address, dataFrameCount int) (*opc.Clients, error) {
 	tcpChannel := dataFrameCount/5 + 1
+	// usernamePasswordAuth := len(address.Option.Username) > 0 && len(address.Option.Password) > 0
 
 	var endpoint string
 	if address.Option.Port <= 0 {
@@ -26,12 +27,16 @@ func (o *OpcUa) NewClients(address *opc.Address, dataFrameCount int) (*opc.Clien
 
 	ms := list.New()
 	for i := 0; i < tcpChannel; i++ {
-		c, err := opcua.NewClient(endpoint, opcua.SecurityMode(ua.MessageSecurityModeNone))
+		var c *opcua.Client
+		var err error
+		c, err = opcua.NewClient(endpoint, opcua.SecurityMode(ua.MessageSecurityModeNone))
 		if err != nil {
 			klog.V(2).InfoS("Failed to get opc ua client")
+			return nil, err
 		}
-		if err := c.Connect(context.Background()); err != nil {
+		if err = c.Connect(context.Background()); err != nil {
 			klog.V(2).InfoS("Failed to connect opc ua server")
+			return nil, err
 		}
 		m := &opc.UaClient{
 			Timeout: 1,
@@ -48,11 +53,13 @@ func (o *OpcUa) NewClients(address *opc.Address, dataFrameCount int) (*opc.Clien
 		NextRequest:  1,
 		ConnRequests: make(map[uint64]chan opc.Messenger, 0),
 		NewMessenger: func() (opc.Messenger, error) {
-			c, err := opcua.NewClient(endpoint, opcua.SecurityMode(ua.MessageSecurityModeNone))
+			var c *opcua.Client
+			var err error
+			c, err = opcua.NewClient(endpoint, opcua.SecurityMode(ua.MessageSecurityModeNone))
 			if err != nil {
 				klog.V(2).InfoS("Failed to get opc ua client")
 			}
-			if err := c.Connect(context.Background()); err != nil {
+			if err = c.Connect(context.Background()); err != nil {
 				klog.V(2).InfoS("Failed to connect opc ua server")
 			}
 
