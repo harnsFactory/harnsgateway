@@ -16,18 +16,24 @@ import (
 	"time"
 )
 
-// 报文对应的数据点位
+/**
+modbus 协议 ADU = 地址(1) + pdu(253) + 16位校验(2) = 256
+modbus Rtu报文
+地址(1)   +   pdu(253) = 256
+*/
+
+// ModBusRtuDataFrame 报文对应的数据点位
 type ModBusRtuDataFrame struct {
 	MemoryLayout      runtime.MemoryLayout
 	StartAddress      uint
-	FunctionCode      uint16
+	FunctionCode      uint8
 	MaxDataSize       uint // 最大数量01 代表线圈  03代表word
 	DataFrame         []byte
 	ResponseDataFrame []byte
 	Variables         []*VariableParse
 }
 
-func (df *ModBusRtuDataFrame) GenerateReadMessage(slave uint, functionCode uint16, startAddress uint, maxDataSize uint) {
+func (df *ModBusRtuDataFrame) GenerateReadMessage(slave uint, functionCode uint8, startAddress uint, maxDataSize uint) {
 	df.FunctionCode = functionCode
 	df.StartAddress = startAddress
 	df.MaxDataSize = maxDataSize
@@ -237,7 +243,7 @@ type ModbusRtuCollector struct {
 	exitCh                   chan struct{}
 	Device                   *modbusrturuntime.ModBusRtuDevice
 	Clients                  *SerialClients
-	FunctionCodeDataFrameMap map[uint16][]*ModBusRtuDataFrame
+	FunctionCodeDataFrameMap map[uint8][]*ModBusRtuDataFrame
 	VariableCount            int
 	VariableCh               chan *runtime.ParseVariableResult
 	CanCollect               bool
@@ -251,9 +257,9 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 	}
 	VariableCount := 0
 	CanCollect := false
-	functionCodeDataFrameMap := make(map[uint16][]*ModBusRtuDataFrame, 0)
+	functionCodeDataFrameMap := make(map[uint8][]*ModBusRtuDataFrame, 0)
 	variables := device.Variables
-	functionCodeVariableMap := make(map[uint16][]*modbusrturuntime.Variable, 0)
+	functionCodeVariableMap := make(map[uint8][]*modbusrturuntime.Variable, 0)
 	for _, variable := range variables {
 		functionCodeVariableMap[variable.FunctionCode] = append(functionCodeVariableMap[variable.FunctionCode], variable)
 	}

@@ -48,6 +48,8 @@ type Device interface {
 	SetDeviceCode(string)
 	GetDeviceType() string
 	SetDeviceType(string)
+	GetDeviceModel() string
+	SetDeviceModel(string)
 	GetCollectStatus() bool
 	SetCollectStatus(bool)
 }

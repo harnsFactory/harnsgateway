@@ -8,8 +8,8 @@ type Variable struct {
 	DataType     runtime.DataType `json:"dataType"`               // bool、int16、float32、float64、int32、int64、uint16
 	Name         string           `json:"name"`                   // 变量名称
 	Address      uint             `json:"address"`                // 变量地址
-	Bits         uint16           `json:"bits"`                   // 位
-	FunctionCode uint16           `json:"functionCode"`           // 功能码 1、2、3、4
+	Bits         uint8            `json:"bits"`                   // 位
+	FunctionCode uint8            `json:"functionCode"`           // 功能码 1、2、3、4
 	Rate         float64          `json:"rate"`                   // 比率
 	Amount       uint             `json:"amount"`                 // 数量
 	DefaultValue interface{}      `json:"defaultValue,omitempty"` // 默认值

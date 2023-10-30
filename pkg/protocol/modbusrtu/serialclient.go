@@ -121,7 +121,7 @@ func (sc *SerialClient) AskAtLeast(request []byte, response []byte) (int, error)
 		return 0, err
 	}
 
-	buf := make([]byte, 300)
+	buf := make([]byte, 256)
 	responseBytesLength := len(response)
 	bytesLength := 0
 	currentIndex := 0

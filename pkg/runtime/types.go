@@ -31,7 +31,8 @@ type DeviceMeta struct {
 	ObjectMeta
 	DeviceCode    string `json:"deviceCode"`
 	DeviceType    string `json:"deviceType"`
-	CollectStatus bool   `json:"collectStatus"`
+	CollectStatus bool   `json:"-"`
+	DeviceModel   string `json:"deviceModel"`
 }
 
 type PublishData struct {
@@ -74,6 +75,14 @@ func (d *DeviceMeta) GetCollectStatus() bool {
 
 func (d *DeviceMeta) SetCollectStatus(collect bool) {
 	d.CollectStatus = collect
+}
+
+func (d *DeviceMeta) GetDeviceModel() string {
+	return d.DeviceModel
+}
+
+func (d *DeviceMeta) SetDeviceModel(model string) {
+	d.DeviceModel = model
 }
 
 type CreateOptions struct {
