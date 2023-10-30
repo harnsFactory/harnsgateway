@@ -34,10 +34,14 @@ func (m *S7DeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device
 		},
 		CollectorCycle:   s7Device.CollectorCycle,
 		VariableInterval: s7Device.VariableInterval,
-		Address:          s7Device.Address,
-		Port:             s7Device.Port,
-		Rack:             s7Device.Rack,
-		Slot:             s7Device.Slot,
+		Address: &s7runtime.S7Address{
+			Location: s7Device.Address.Location,
+			Option: &s7runtime.S7AddressOption{
+				Port: s7Device.Address.Option.Port,
+				Rack: s7Device.Address.Option.Rack,
+				Slot: s7Device.Address.Option.Slot,
+			},
+		},
 	}
 	if len(s7Device.Variables) > 0 {
 		for _, variable := range s7Device.Variables {

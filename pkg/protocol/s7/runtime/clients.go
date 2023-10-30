@@ -10,17 +10,17 @@ import (
 	"time"
 )
 
-type Tunnels struct {
-	NewMessenger func() (*Messenger, error)
+type Clients struct {
+	NewMessenger func() (Messenger, error)
 	Messengers   *list.List
 	Max          int
 	Idle         int
 	Mux          *sync.Mutex
-	ConnRequests map[uint64]chan *Messenger
+	ConnRequests map[uint64]chan Messenger
 	NextRequest  uint64
 }
 
-func (t *Tunnels) GetMessenger(ctx context.Context) (*Messenger, error) {
+func (t *Clients) GetMessenger(ctx context.Context) (Messenger, error) {
 	select {
 	default:
 	case <-ctx.Done():
@@ -31,13 +31,13 @@ func (t *Tunnels) GetMessenger(ctx context.Context) (*Messenger, error) {
 	if t.Idle > 0 {
 		t.Idle = t.Idle - 1
 		front := t.Messengers.Front()
-		messenger := front.Value.(*Messenger)
+		messenger := front.Value.(Messenger)
 		t.Messengers.Remove(front)
 		t.Mux.Unlock()
 		return messenger, nil
 	}
 
-	mCh := make(chan *Messenger, 1)
+	mCh := make(chan Messenger, 1)
 	key := t.nextRequestKey()
 	t.ConnRequests[key] = mCh
 	t.Mux.Unlock()
@@ -50,7 +50,7 @@ func (t *Tunnels) GetMessenger(ctx context.Context) (*Messenger, error) {
 		select {
 		default:
 		case m, ok := <-mCh:
-			if ok && m.Tunnel != nil {
+			if ok && m.Available() {
 				t.Messengers.PushBack(m)
 			}
 		}
@@ -63,11 +63,11 @@ func (t *Tunnels) GetMessenger(ctx context.Context) (*Messenger, error) {
 	}
 }
 
-func (t *Tunnels) ReleaseMessenger(messenger *Messenger) {
+func (t *Clients) ReleaseMessenger(messenger Messenger) {
 	t.Mux.Lock()
 	defer t.Mux.Unlock()
 	if t.Idle == 0 && len(t.ConnRequests) > 0 {
-		var mCh chan *Messenger
+		var mCh chan Messenger
 		var key uint64
 		for key, mCh = range t.ConnRequests {
 			break
@@ -80,13 +80,13 @@ func (t *Tunnels) ReleaseMessenger(messenger *Messenger) {
 	}
 }
 
-func (t *Tunnels) Destroy(ctx context.Context) {
+func (t *Clients) Destroy(ctx context.Context) {
 	t.Mux.Lock()
 	defer t.Mux.Unlock()
 	for t.Messengers.Len() > 0 {
 		e := t.Messengers.Front()
-		m := e.Value.(*Messenger)
-		m.Tunnel.Close()
+		m := e.Value.(Messenger)
+		m.Close()
 		t.Messengers.Remove(e)
 	}
 
@@ -95,30 +95,50 @@ func (t *Tunnels) Destroy(ctx context.Context) {
 	}
 }
 
-func (t *Tunnels) nextRequestKey() uint64 {
+func (t *Clients) nextRequestKey() uint64 {
 	next := t.NextRequest
 	t.NextRequest++
 	return next
 }
 
-type Messenger struct {
+type Messenger interface {
+	AskAtLeast(request []byte, response []byte, min int) (int, error)
+	Close()
+	Available() bool
+	Reset(messenger Messenger)
+}
+
+type TcpClient struct {
 	Timeout int
 	Tunnel  net.Conn
 }
 
-func (m *Messenger) AskAtLeast(request []byte, response []byte, min int) (int, error) {
-	_, err := m.Tunnel.Write(request)
+func (tc *TcpClient) Reset(messenger Messenger) {
+	ntc := (messenger).(*TcpClient)
+	tc.Tunnel = ntc.Tunnel
+}
+
+func (tc *TcpClient) Available() bool {
+	return tc.Tunnel != nil
+}
+
+func (tc *TcpClient) Close() {
+	_ = tc.Tunnel.Close()
+}
+
+func (tc *TcpClient) AskAtLeast(request []byte, response []byte, min int) (int, error) {
+	_, err := tc.Tunnel.Write(request)
 	if err != nil {
 		klog.V(2).InfoS("Failed to ask message", "error", err)
 		return 0, ErrBadConn
 	}
 	// 设置读超时
-	deadLineTime := time.Now().Add(time.Duration(m.Timeout) * time.Second)
+	deadLineTime := time.Now().Add(time.Duration(tc.Timeout) * time.Second)
 
-	err = m.Tunnel.SetReadDeadline(deadLineTime)
+	err = tc.Tunnel.SetReadDeadline(deadLineTime)
 	if err != nil {
 		klog.V(2).InfoS("Tcp connect timeout", "error", err)
 		return 0, err
 	}
-	return io.ReadAtLeast(m.Tunnel, response, min)
+	return io.ReadAtLeast(tc.Tunnel, response, min)
 }

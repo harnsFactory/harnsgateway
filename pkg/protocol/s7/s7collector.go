@@ -1,16 +1,14 @@
 package s7
 
 import (
-	"container/list"
 	"context"
 	"errors"
 	"fmt"
+	"harnsgateway/pkg/protocol/s7/model"
 	s7runtime "harnsgateway/pkg/protocol/s7/runtime"
 	"harnsgateway/pkg/runtime"
 	"harnsgateway/pkg/utils/binutil"
-	"io"
 	"k8s.io/klog/v2"
-	"net"
 	"sort"
 	"sync"
 	"time"
@@ -136,9 +134,9 @@ type VariableParse struct {
 }
 
 type S7Collector struct {
-	exitCh                   chan struct{}
+	ExitCh                   chan struct{}
 	Device                   *s7runtime.S7Device
-	Tunnels                  *s7runtime.Tunnels
+	Clients                  *s7runtime.Clients
 	StoreAddressDataFrameMap map[s7runtime.S7StoreArea][]*S7DataFrame
 	VariableCount            int
 	VariableCh               chan *runtime.ParseVariableResult
@@ -152,7 +150,7 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 		klog.V(2).InfoS("Failed to new s7 collector,device type not supported")
 		return nil, nil, s7runtime.ErrDeviceType
 	}
-	maxPduLength, err := GetS7DevicePDULength(device)
+	maxPduLength, err := model.S7Modelers[device.DeviceModel].GetS7DevicePDULength(device.Address)
 	if err != nil {
 		klog.V(2).InfoS("Failed to connect s7 device for get pdu length")
 		return nil, nil, err
@@ -224,53 +222,37 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 		storeAddressDataFrameMap[key] = dataFrames
 	}
 
-	tcpChannel := 0
+	dataFrameCount := 0
 	for _, values := range storeAddressDataFrameMap {
-		tcpChannel += len(values)
+		dataFrameCount += len(values)
 	}
-	if tcpChannel > 0 {
-		tcpChannel = tcpChannel/5 + 1
-		CanCollect = true
-	}
-
-	addr := fmt.Sprintf("%s:%d", device.Address, device.Port)
-	ms := list.New()
-	for i := 0; i < tcpChannel; i++ {
-		m, err := newS7Messenger(addr, device.Rack, device.Slot)
-		if err != nil {
-			klog.V(2).InfoS("Failed to connect s7 server", "error", err)
-			return nil, nil, err
-		}
-		ms.PushBack(m)
+	if dataFrameCount == 0 {
+		klog.V(2).InfoS("Failed to collect from s7 server.Because of the variables is empty", "deviceId", device.ID)
+		return nil, nil, nil
 	}
 
-	tunnels := &s7runtime.Tunnels{
-		Messengers:   ms,
-		Max:          tcpChannel,
-		Idle:         tcpChannel,
-		Mux:          &sync.Mutex{},
-		NextRequest:  1,
-		ConnRequests: make(map[uint64]chan *s7runtime.Messenger, 0),
-		NewMessenger: func() (*s7runtime.Messenger, error) {
-			return newS7Messenger(addr, device.Rack, device.Slot)
-		},
+	CanCollect = true
+	clients, err := model.S7Modelers[device.DeviceModel].NewClients(device.Address, dataFrameCount)
+	if err != nil {
+		klog.V(2).InfoS("Failed to collect from S7 server", "error", err, "deviceId", device.ID)
+		return nil, nil, nil
 	}
 
 	s7c := &S7Collector{
 		Device:                   device,
-		exitCh:                   make(chan struct{}, 0),
+		ExitCh:                   make(chan struct{}, 0),
 		StoreAddressDataFrameMap: storeAddressDataFrameMap,
 		VariableCh:               make(chan *runtime.ParseVariableResult, 1),
 		VariableCount:            len(device.Variables),
 		CanCollect:               CanCollect,
-		Tunnels:                  tunnels,
+		Clients:                  clients,
 	}
 	return s7c, s7c.VariableCh, nil
 }
 
 func (collector *S7Collector) Destroy(ctx context.Context) {
-	collector.exitCh <- struct{}{}
-	collector.Tunnels.Destroy(ctx)
+	collector.ExitCh <- struct{}{}
+	collector.Clients.Destroy(ctx)
 	close(collector.VariableCh)
 }
 
@@ -283,7 +265,7 @@ func (collector *S7Collector) Collect(ctx context.Context) {
 					return
 				}
 				select {
-				case <-collector.exitCh:
+				case <-collector.ExitCh:
 					return
 				default:
 					end := time.Now().Unix()
@@ -299,7 +281,7 @@ func (collector *S7Collector) Collect(ctx context.Context) {
 
 func (collector *S7Collector) poll(ctx context.Context) bool {
 	select {
-	case <-collector.exitCh:
+	case <-collector.ExitCh:
 		return false
 	default:
 		sw := &sync.WaitGroup{}
@@ -307,7 +289,7 @@ func (collector *S7Collector) poll(ctx context.Context) bool {
 		for _, dataFrames := range collector.StoreAddressDataFrameMap {
 			for _, frame := range dataFrames {
 				sw.Add(1)
-				go collector.message(ctx, frame, dfvCh, sw, collector.Tunnels)
+				go collector.message(ctx, frame, dfvCh, sw, collector.Clients)
 			}
 		}
 		go collector.rollVariable(ctx, dfvCh)
@@ -316,25 +298,25 @@ func (collector *S7Collector) poll(ctx context.Context) bool {
 		return true
 	}
 }
-func (collector *S7Collector) message(ctx context.Context, dataFrame *S7DataFrame, pvrCh chan<- *s7runtime.ParseVariableResult, sw *sync.WaitGroup, tunnels *s7runtime.Tunnels) {
+func (collector *S7Collector) message(ctx context.Context, dataFrame *S7DataFrame, pvrCh chan<- *s7runtime.ParseVariableResult, sw *sync.WaitGroup, clients *s7runtime.Clients) {
 	defer sw.Done()
 	defer func() {
 		if err := recover(); err != nil {
 			klog.V(2).InfoS("Failed to ask s7 message", "error", err)
 		}
 	}()
-	tunnel, err := tunnels.GetMessenger(ctx)
-	defer collector.Tunnels.ReleaseMessenger(tunnel)
+	messenger, err := clients.GetMessenger(ctx)
+	defer clients.ReleaseMessenger(messenger)
 	if err != nil {
 		klog.V(2).InfoS("Failed to get tunnel", "error", err)
-		if tunnel, err = collector.Tunnels.NewMessenger(); err != nil {
+		if messenger, err = collector.Clients.NewMessenger(); err != nil {
 			return
 		}
 	}
 
 	var buf []byte
-	if err := collector.retry(func(tunnel *s7runtime.Messenger, dataFrame *S7DataFrame) error {
-		least, err := tunnel.AskAtLeast(dataFrame.DataFrame, dataFrame.ResponseDataFrame, 19)
+	if err := collector.retry(func(messenger s7runtime.Messenger, dataFrame *S7DataFrame) error {
+		least, err := messenger.AskAtLeast(dataFrame.DataFrame, dataFrame.ResponseDataFrame, 19)
 		if err != nil {
 			return s7runtime.ErrBadConn
 		}
@@ -343,7 +325,7 @@ func (collector *S7Collector) message(ctx context.Context, dataFrame *S7DataFram
 			return s7runtime.ErrServerBadResp
 		}
 		return nil
-	}, tunnel, dataFrame); err != nil {
+	}, messenger, dataFrame); err != nil {
 		klog.V(2).InfoS("Failed to connect s7 server by retry three times")
 		pvrCh <- &s7runtime.ParseVariableResult{Err: []error{err}}
 		return
@@ -352,21 +334,21 @@ func (collector *S7Collector) message(ctx context.Context, dataFrame *S7DataFram
 	pvrCh <- &s7runtime.ParseVariableResult{Err: nil, VariableSlice: dataFrame.ParseVariableValue(buf[21:])}
 }
 
-func (collector *S7Collector) retry(fun func(tunnel *s7runtime.Messenger, dataFrame *S7DataFrame) error, tunnel *s7runtime.Messenger, dataFrame *S7DataFrame) error {
+func (collector *S7Collector) retry(fun func(messenger s7runtime.Messenger, dataFrame *S7DataFrame) error, messenger s7runtime.Messenger, dataFrame *S7DataFrame) error {
 	for i := 0; i < 3; i++ {
-		err := fun(tunnel, dataFrame)
+		err := fun(messenger, dataFrame)
 		if err == nil {
 			return nil
 		} else if errors.Is(err, s7runtime.ErrBadConn) {
-			tunnel.Tunnel.Close()
-			newTunnel, err := collector.Tunnels.NewMessenger()
+			messenger.Close()
+			newMessenger, err := collector.Clients.NewMessenger()
 			if err != nil {
 				return err
 			}
-			tunnel.Tunnel = newTunnel.Tunnel
+			messenger.Reset(newMessenger)
 			i = i - 1
 		} else {
-			klog.V(2).InfoS("Failed to connect modbus tcp server", "error", err)
+			klog.V(2).InfoS("Failed to connect s7 server", "error", err)
 		}
 	}
 	return s7runtime.ErrManyRetry
@@ -390,52 +372,6 @@ func (collector *S7Collector) rollVariable(ctx context.Context, ch chan *s7runti
 			}
 		}
 	}
-}
-
-func GetS7DevicePDULength(device *s7runtime.S7Device) (uint16, error) {
-	addr := fmt.Sprintf("%s:%d", device.Address, device.Port)
-	tunnel, err := net.Dial("tcp", addr)
-	defer tunnel.Close()
-	if err != nil {
-		klog.V(2).InfoS("Failed to connect s7 device", "address", addr, "error", err)
-		return 0, err
-	}
-
-	_, err = tunnel.Write(newCOTPConnectMessage(device.Rack, device.Slot))
-	if err != nil {
-		klog.V(2).InfoS("Failed to connect s7 device passed COTP message", "error", err)
-		return 0, err
-	}
-	cotpResponse := make([]byte, 22)
-	_, err = io.ReadAtLeast(tunnel, cotpResponse, 22)
-	if err != nil {
-		klog.V(2).InfoS("Failed to connect s7 device passed COTP message", "error", err)
-		return 0, err
-	}
-	if int(cotpResponse[5]) != 208 {
-		return 0, s7runtime.ErrConnectS7DeviceCotpMessage
-	}
-	_, err = tunnel.Write(newS7COMMSetupMessage())
-	if err != nil {
-		klog.V(2).InfoS("Failed to connect s7 device passed S7COMM message", "error", err)
-		return 0, err
-	}
-	s7Response := make([]byte, 27)
-	_, err = io.ReadAtLeast(tunnel, s7Response, 27)
-	if err != nil {
-		klog.V(2).InfoS("Failed to connect s7 device passed S7COMM message", "error", err)
-		return 0, err
-	}
-	if s7Response[8] != 3 {
-		errClass := int(s7Response[17])
-		errCode := int(s7Response[18])
-		klog.V(2).InfoS("Failed to connect s7 device passed S7COMM message", "errClass", errClass, "errCode", errCode, "error", err)
-		return 0, s7runtime.ErrConnectS7DeviceS7COMMMessage
-	}
-
-	responsePduLength := s7Response[25:]
-	return binutil.ParseUint16(responsePduLength), nil
-
 }
 
 func newS7DataFrame(key s7runtime.S7StoreArea, variableParse []*VariableParse, items []*S7Item, dataLength int, pdu uint16) *S7DataFrame {
@@ -479,34 +415,6 @@ func newS7DataFrame(key s7runtime.S7StoreArea, variableParse []*VariableParse, i
 	return df
 }
 
-func newCOTPConnectMessage(rack uint8, slot uint8) []byte {
-	rackSlotByte := (rack*2)<<4 + slot
-	bytes := []byte{
-		0x03, 0x00, 0x00, 0x16, // 总字节数 固定22
-		0x11, 0xe0, 0x00, 0x00,
-		0x00, 0x01, 0x00, 0xc0,
-		0x01, 0x0a, 0xc1, 0x02,
-		0x01, 0x02, 0xc2, 0x02,
-		0x01,         // Destination TSAP connectionType   01PG  02OP 03s7单边 0x10s7双边
-		rackSlotByte, // rack & solt
-	}
-	return bytes
-}
-
-func newS7COMMSetupMessage() []byte {
-	setupBytes := []byte{
-		// TPKT
-		0x03, 0x00, 0x00, 0x19, // 总字节数
-		// COTP
-		0x02, 0xf0, 0x80,
-		// S7 header
-		0x32, 0x01, 0x00, 0x00, 0x04, 0x00, 0x00, 0x08, 0x00, 0x00,
-		// S7 parameter
-		0xf0, 0x00, 0x00, 0x01, 0x00, 0x01, 0x01, 0xe0,
-	}
-	return setupBytes
-}
-
 func newS7COMMReadParameterItem(transportSize uint8, length uint16, dbNumber uint16, zone uint8, address uint32, bitAddress uint8) []byte {
 	itemBytes := []byte{
 		0x12, // 结构标识
@@ -528,48 +436,4 @@ func newS7COMMReadParameterItem(transportSize uint8, length uint16, dbNumber uin
 	itemBytes = append(itemBytes, uint8((address<<3)/256%256))
 	itemBytes = append(itemBytes, uint8((address<<3)%256)+bitAddress)
 	return itemBytes
-}
-
-func newS7Messenger(addr string, rack uint8, slot uint8) (*s7runtime.Messenger, error) {
-	tunnel, err := net.Dial("tcp", addr)
-	if err != nil {
-		klog.V(2).InfoS("Failed to connect s7 device", "address", addr, "error", err)
-		return nil, err
-	}
-
-	_, err = tunnel.Write(newCOTPConnectMessage(rack, slot))
-	if err != nil {
-		klog.V(2).InfoS("Failed to connect s7 device passed COTP message", "error", err)
-		return nil, err
-	}
-	cotpResponse := make([]byte, 22)
-	_, err = io.ReadAtLeast(tunnel, cotpResponse, 22)
-	if err != nil {
-		klog.V(2).InfoS("Failed to connect s7 device passed COTP message", "error", err)
-		return nil, err
-	}
-	if int(cotpResponse[5]) != 208 {
-		return nil, s7runtime.ErrConnectS7DeviceCotpMessage
-	}
-	_, err = tunnel.Write(newS7COMMSetupMessage())
-	if err != nil {
-		klog.V(2).InfoS("Failed to connect s7 device passed S7COMM message", "error", err)
-		return nil, err
-	}
-	s7Response := make([]byte, 27)
-	_, err = io.ReadAtLeast(tunnel, s7Response, 27)
-	if err != nil {
-		klog.V(2).InfoS("Failed to connect s7 device passed S7COMM message", "error", err)
-		return nil, err
-	}
-	if s7Response[8] != 3 {
-		errClass := int(s7Response[17])
-		errCode := int(s7Response[18])
-		klog.V(2).InfoS("Failed to connect s7 device passed S7COMM message", "errClass", errClass, "errCode", errCode, "error", err)
-		return nil, s7runtime.ErrConnectS7DeviceS7COMMMessage
-	}
-	return &s7runtime.Messenger{
-		Tunnel:  tunnel,
-		Timeout: 1,
-	}, nil
 }

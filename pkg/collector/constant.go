@@ -10,7 +10,7 @@ import (
 var DeviceManagers = map[string]DeviceManager{
 	"modbus": &modbus.ModbusDeviceManager{},
 	"opcUa":  &opcua.OpcUaDeviceManager{},
-	"s71500": &s7.S7DeviceManager{},
+	"s7":     &s7.S7DeviceManager{},
 }
 
 const (

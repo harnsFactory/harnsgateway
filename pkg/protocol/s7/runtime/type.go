@@ -260,11 +260,19 @@ type S7Device struct {
 	runtime.DeviceMeta
 	CollectorCycle   uint        `json:"collectorCycle"`                    // 采集周期
 	VariableInterval uint        `json:"variableInterval"`                  // 变量间隔
-	Address          string      `json:"address"`                           // IP地址\串口地址
-	Port             uint        `json:"port"`                              // 端口号
-	Rack             uint8       `json:"rack,omitempty"`                    // 机架号
-	Slot             uint8       `json:"slot,omitempty"`                    // 槽位号
+	Address          *S7Address  `json:"address"`                           // IP地址
 	Variables        []*Variable `json:"variables" binding:"required,dive"` // 自定义变量
+}
+
+type S7Address struct {
+	Location string           `json:"location"` // 地址路径
+	Option   *S7AddressOption `json:"option"`   // 地址其他参数
+}
+
+type S7AddressOption struct {
+	Port uint  `json:"port"`           // 端口号
+	Rack uint8 `json:"rack,omitempty"` // 机架号
+	Slot uint8 `json:"slot,omitempty"` // 槽位号
 }
 
 type VariableSlice []*Variable
