@@ -13,7 +13,7 @@ type DeviceMeta struct {
 }
 
 type PublishMeta struct {
-	Topic string `json:"topic" binding:"min=1,max=128"`
+	Topic string `json:"topic"`
 }
 
 func (d *DeviceMeta) GetDeviceType() string {
