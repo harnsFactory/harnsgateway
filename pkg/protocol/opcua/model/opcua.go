@@ -25,11 +25,24 @@ func (o *OpcUa) NewClients(address *opc.Address, dataFrameCount int) (*opc.Clien
 		endpoint = fmt.Sprintf("%s:%d", address.Location, address.Option.Port)
 	}
 
+	opts := []opcua.Option{
+		opcua.SecurityMode(ua.MessageSecurityModeNone),
+	}
+	// if usernamePasswordAuth {
+	// 	ep := ua.EndpointDescription{
+	// 		EndpointURL:       endpoint,
+	// 		SecurityMode:      ua.MessageSecurityModeNone,
+	// 		SecurityPolicyURI: ua.SecurityPolicyURINone,
+	// 	}
+	// 	opts = append(opts, opcua.AuthUsername(address.Option.Username, address.Option.Password))
+	// 	opts = append(opts, opcua.SecurityFromEndpoint(&ep, ua.UserTokenTypeUserName))
+	// }
+
 	ms := list.New()
 	for i := 0; i < tcpChannel; i++ {
 		var c *opcua.Client
 		var err error
-		c, err = opcua.NewClient(endpoint, opcua.SecurityMode(ua.MessageSecurityModeNone))
+		c, err = opcua.NewClient(endpoint, opts...)
 		if err != nil {
 			klog.V(2).InfoS("Failed to get opc ua client")
 			return nil, err

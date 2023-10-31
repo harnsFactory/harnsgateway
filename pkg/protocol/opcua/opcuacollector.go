@@ -63,15 +63,15 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 				NodesToRead:        requestVariables}})
 	}
 	if len(namespaceVariableDataFrame) == 0 {
-		klog.V(2).InfoS("Failed to collect from opc server.Because of the variables is empty", "deviceId", device.ID)
+		klog.V(2).InfoS("Failed to collect from OPC server.Because of the variables is empty", "deviceId", device.ID)
 		return nil, nil, nil
 	}
 	CanCollect = true
 
 	clients, err := model.OpcUaModelers[device.DeviceModel].NewClients(device.Address, len(namespaceVariableDataFrame))
 	if err != nil {
-		klog.V(2).InfoS("Failed to collect from Modbus server", "error", err, "deviceId", device.ID)
-		return nil, nil, nil
+		klog.V(2).InfoS("Failed to collect from OPC server", "error", err, "deviceId", device.ID)
+		return nil, nil, err
 	}
 	mtc := &OpcUaCollector{
 		Device:                     device,
