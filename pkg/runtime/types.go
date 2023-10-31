@@ -27,12 +27,20 @@ type ObjectMeta struct {
 	ModTime time.Time `json:"modTime"`
 }
 
+type PublishMeta struct {
+	Topic string `json:"topic"`
+}
+
+func (pm *PublishMeta) GetTopic() string      { return pm.Topic }
+func (pm *PublishMeta) SetTopic(topic string) { pm.Topic = topic }
+
 type DeviceMeta struct {
 	ObjectMeta
+	PublishMeta
 	DeviceCode    string `json:"deviceCode"`
 	DeviceType    string `json:"deviceType"`
-	CollectStatus bool   `json:"-"`
 	DeviceModel   string `json:"deviceModel"`
+	CollectStatus bool   `json:"-"`
 }
 
 type PublishData struct {

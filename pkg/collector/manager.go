@@ -180,7 +180,12 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 	defer m.mu.Unlock()
 	m.collectors[obj.GetID()] = collector
 	m.collectorReturnCh[obj.GetID()] = results
-	topic := fmt.Sprintf("data/%s/v1/%s", m.gatewayMeta.ID, obj.GetID())
+
+	topic := obj.GetTopic()
+	if len(topic) == 0 {
+		topic = fmt.Sprintf("data/%s/v1/%s", m.gatewayMeta.ID, obj.GetID())
+	}
+
 	collector.Collect(context.Background())
 	go func(deviceId string, ch chan *runtime.ParseVariableResult) {
 		for {

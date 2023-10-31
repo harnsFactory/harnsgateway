@@ -21,6 +21,7 @@ func (m *S7DeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device
 
 	d := &s7runtime.S7Device{
 		DeviceMeta: runtime.DeviceMeta{
+			PublishMeta: runtime.PublishMeta{Topic: s7Device.Topic},
 			ObjectMeta: runtime.ObjectMeta{
 				Name:    s7Device.Name,
 				ID:      uuidutil.UUID(),

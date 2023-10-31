@@ -21,6 +21,7 @@ func (m *OpcUaDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Dev
 
 	d := &opcuaruntime.OpcUaDevice{
 		DeviceMeta: runtime.DeviceMeta{
+			PublishMeta: runtime.PublishMeta{Topic: opcUaDevice.Topic},
 			ObjectMeta: runtime.ObjectMeta{
 				Name:    opcUaDevice.Name,
 				ID:      uuidutil.UUID(),

@@ -42,8 +42,14 @@ type Object interface {
 	SetModTime(time.Time)
 }
 
+type Publisher interface {
+	SetTopic(string)
+	GetTopic() string
+}
+
 type Device interface {
 	Object
+	Publisher
 	GetDeviceCode() string
 	SetDeviceCode(string)
 	GetDeviceType() string

@@ -21,6 +21,7 @@ func (m *ModbusDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.De
 
 	d := &modbus.ModBusDevice{
 		DeviceMeta: runtime.DeviceMeta{
+			PublishMeta: runtime.PublishMeta{Topic: modbusDevice.Topic},
 			ObjectMeta: runtime.ObjectMeta{
 				Name:    modbusDevice.Name,
 				ID:      uuidutil.UUID(),
