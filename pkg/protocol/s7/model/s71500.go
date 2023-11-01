@@ -135,11 +135,24 @@ func newS7Messenger(addr string, rack uint8, slot uint8) (s7.Messenger, error) {
 func newCOTPConnectMessage(rack uint8, slot uint8) []byte {
 	rackSlotByte := (rack*2)<<4 + slot
 	bytes := []byte{
-		0x03, 0x00, 0x00, 0x16, // 总字节数 固定22
-		0x11, 0xe0, 0x00, 0x00,
-		0x00, 0x01, 0x00, 0xc0,
-		0x01, 0x0a, 0xc1, 0x02,
-		0x01, 0x02, 0xc2, 0x02,
+		// TPKT 共4个字节
+		0x03,       // 版本号
+		0x00,       // 预留字段
+		0x00, 0x16, // 报文总长度 这里固定22
+		// COTP 共18个字节
+		0x11,       // 该字节之后的报文总长度
+		0xe0,       // PDU类型 [(0xe0连接确认),(0xd0连接确认),(0x80断开请求),(0xc0断开确认),(0x50拒绝),(0xf0数据)]
+		0x00, 0x00, // Destination reference 目标引用 用来唯一标识目标
+		0x00, 0x01, // Source reference 源的引用
+		0x00,       // 前四位标识Class,倒数第二位对应Extended formats是否使用拓展样式,倒数第一位对应No explicit flow control是否有明确的指定流控制
+		0xc0,       // parameter code: tpdu-size 参数代码 TPDU-SIZE
+		0x01,       // parameter length 参数长度
+		0x0a,       // TPDU size TPDU大小
+		0xc1,       // parameter code:src-tsap
+		0x02,       // parameter length
+		0x01, 0x00, // source TSAP   SourceTSAP/Rack
+		0xc2,         // parameter code:dst-tsap
+		0x02,         // parameter length
 		0x01,         // Destination TSAP connectionType   01PG  02OP 03s7单边 0x10s7双边
 		rackSlotByte, // rack & solt
 	}
@@ -149,13 +162,26 @@ func newCOTPConnectMessage(rack uint8, slot uint8) []byte {
 func newS7COMMSetupMessage() []byte {
 	setupBytes := []byte{
 		// TPKT
-		0x03, 0x00, 0x00, 0x19, // 总字节数
+		0x03,       // 协议号
+		0x00,       // 预留字段
+		0x00, 0x19, // 总字节数
 		// COTP
-		0x02, 0xf0, 0x80,
+		0x02, // 该字节之后的COTP报文长度
+		0xf0, // PDU类型 [(0xe0连接确认),(0xd0连接确认),(0x80断开请求),(0xc0断开确认),(0x50拒绝),(0xf0数据)]
+		0x80, // Destination reference 首位：是否最后一个数据 后7位： TPDU**编号
 		// S7 header
-		0x32, 0x01, 0x00, 0x00, 0x04, 0x00, 0x00, 0x08, 0x00, 0x00,
+		0x32,       // 协议id
+		0x01,       // pdu类型 [{0x01-job},{0x02-ack},{0x03-ack-data},{0x07-Userdata}]
+		0x00, 0x00, // 保留字段
+		0x04, 0x00, // Protocol Data Unit Reference |pdu的参考–由主站生成，每次新传输递增（大端）
+		0x00, 0x08, // 参数长度
+		0x00, 0x00, // 数据长度
 		// S7 parameter
-		0xf0, 0x00, 0x00, 0x01, 0x00, 0x01, 0x01, 0xe0,
+		0xf0,       // [{0xF0设置通信}]
+		0x00,       // 预留
+		0x00, 0x01, // Ack队列的大小（主叫）（大端）
+		0x00, 0x01, // Ack队列的大小（被叫）（大端）
+		0x01, 0xe0, // pdu长度
 	}
 	return setupBytes
 }
