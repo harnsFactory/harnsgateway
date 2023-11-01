@@ -13,10 +13,10 @@ paths:
     post:
       tags:
         - Device
-      summary: Create ModbusTcp Device
+      summary: Create Modbus Device
       operationId: createDevice
       requestBody:
-        description: ModbusTcp Device
+        description: Modbus Device
         content:
           application/json:
             schema:
