@@ -41,7 +41,7 @@ type ModbusCollector struct {
 func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVariableResult, error) {
 	device, ok := d.(*modbus.ModBusDevice)
 	if !ok {
-		klog.V(2).InfoS("Failed to new modbus tcp collector,device type not supported")
+		klog.V(2).InfoS("Failed to new modbus tcp broker,device type not supported")
 		return nil, nil, modbus.ErrDeviceType
 	}
 

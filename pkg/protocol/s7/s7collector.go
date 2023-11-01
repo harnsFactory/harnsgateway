@@ -147,7 +147,7 @@ type S7Collector struct {
 func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVariableResult, error) {
 	device, ok := d.(*s7runtime.S7Device)
 	if !ok {
-		klog.V(2).InfoS("Failed to new s7 collector,device type not supported")
+		klog.V(2).InfoS("Failed to new s7 broker,device type not supported")
 		return nil, nil, s7runtime.ErrDeviceType
 	}
 	maxPduLength, err := model.S7Modelers[device.DeviceModel].GetS7DevicePDULength(device.Address)

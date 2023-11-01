@@ -33,7 +33,7 @@ type OpcUaCollector struct {
 func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVariableResult, error) {
 	device, ok := d.(*opcuaruntime.OpcUaDevice)
 	if !ok {
-		klog.V(2).InfoS("Failed to new opc ua collector,device type not supported")
+		klog.V(2).InfoS("Failed to new opc ua broker,device type not supported")
 		return nil, nil, opcuaruntime.ErrDeviceType
 	}
 

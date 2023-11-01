@@ -1,4 +1,4 @@
-package collector
+package broker
 
 import (
 	"harnsgateway/pkg/runtime"

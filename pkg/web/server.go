@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"harnsgateway/cmd/gateway/config"
 	"harnsgateway/cmd/gateway/options"
-	"harnsgateway/pkg/collector"
+	"harnsgateway/pkg/broker"
 	"harnsgateway/pkg/gateway"
 	"harnsgateway/pkg/generic"
 	"k8s.io/klog/v2"
@@ -41,7 +41,7 @@ func NewServer(router *gin.Engine, o *options.Options, config *config.Config) (*
 
 func (s *Server) InstallHandlers() {
 	v1 := s.Router.Group("/api/v1")
-	collector.InstallHandler(v1, s.Config.CollectorMgr)
+	broker.InstallHandler(v1, s.Config.CollectorMgr)
 	gateway.InstallHandler(v1, s.Config.GatewayMgr)
 }
 

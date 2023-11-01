@@ -5,7 +5,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/spf13/pflag"
 	"harnsgateway/cmd/gateway/config"
-	"harnsgateway/pkg/collector"
+	"harnsgateway/pkg/broker"
 	"harnsgateway/pkg/gateway"
 	"harnsgateway/pkg/generic"
 	baseoptions "harnsgateway/pkg/generic/options"
@@ -85,7 +85,7 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		klog.ErrorS(token.Error(), "Failed to connect MQTT", "servers", o.MqttBrokerUrls)
 		return nil, token.Error()
 	}
-	collectorMgr := collector.NewCollectorManager(store, mqttClient, gatewayMeta, stopCh)
+	collectorMgr := broker.NewCollectorManager(store, mqttClient, gatewayMeta, stopCh)
 	collectorMgr.Init()
 
 	c.CollectorMgr = collectorMgr

@@ -1,4 +1,4 @@
-package collector
+package broker
 
 import (
 	"context"
@@ -169,7 +169,7 @@ func (m Manager) cancelCollect(obj runtime.Device) error {
 func (m *Manager) readyCollect(obj runtime.Device) error {
 	collector, results, err := generic.DeviceTypeCollectorMap[obj.GetDeviceType()](obj)
 	if err != nil {
-		klog.V(2).InfoS("Failed to create collector", "deviceId", obj.GetID())
+		klog.V(2).InfoS("Failed to create broker", "deviceId", obj.GetID())
 		return err
 	}
 	if collector == nil {

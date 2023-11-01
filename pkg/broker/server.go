@@ -1,4 +1,4 @@
-package collector
+package broker
 
 import (
 	"bytes"
@@ -22,6 +22,7 @@ func InstallHandler(group *gin.RouterGroup, mgr *Manager) {
 	group.DELETE("/devices/:id", deleteDevice(mgr))
 	group.GET("/devices", listDevices(mgr))
 	group.GET("/devices/:id", getDeviceById(mgr))
+	group.PUT("/devices/:id/control", controlDeviceById(mgr))
 }
 
 func createDevice(mgr *Manager) gin.HandlerFunc {
@@ -128,4 +129,8 @@ func getDeviceById(mgr *Manager) gin.HandlerFunc {
 		c.Header(apis.ETag, fmt.Sprintf("%s", rd.GetVersion()))
 		c.JSON(http.StatusOK, rd)
 	}
+}
+
+func controlDeviceById(mgr *Manager) gin.HandlerFunc {
+	return nil
 }
