@@ -20,28 +20,11 @@ type ParseVariableResult struct {
 	Err           []error
 }
 
-type ObjectMeta struct {
-	Name    string    `json:"name"`
-	ID      string    `json:"id"`
-	Version string    `json:"eTag"`
-	ModTime time.Time `json:"modTime"`
-}
+type Time time.Time
 
-type PublishMeta struct {
-	Topic string `json:"topic"`
-}
+type TimeZone time.Location
 
-func (pm *PublishMeta) GetTopic() string      { return pm.Topic }
-func (pm *PublishMeta) SetTopic(topic string) { pm.Topic = topic }
-
-type DeviceMeta struct {
-	ObjectMeta
-	PublishMeta
-	DeviceCode    string `json:"deviceCode"`
-	DeviceType    string `json:"deviceType"`
-	DeviceModel   string `json:"deviceModel"`
-	CollectStatus bool   `json:"-"`
-}
+type Predicate func(value interface{}) bool
 
 type PublishData struct {
 	Payload Payload `json:"payload"`
@@ -59,38 +42,6 @@ type TimeSeriesData struct {
 type PointData struct {
 	DataPointId string      `json:"dataPointId"`
 	Value       interface{} `json:"value"`
-}
-
-func (d *DeviceMeta) GetDeviceCode() string {
-	return d.DeviceCode
-}
-
-func (d *DeviceMeta) SetDeviceCode(s string) {
-	d.DeviceCode = s
-}
-
-func (d *DeviceMeta) GetDeviceType() string {
-	return d.DeviceType
-}
-
-func (d *DeviceMeta) SetDeviceType(s string) {
-	d.DeviceType = s
-}
-
-func (d *DeviceMeta) GetCollectStatus() bool {
-	return d.CollectStatus
-}
-
-func (d *DeviceMeta) SetCollectStatus(collect bool) {
-	d.CollectStatus = collect
-}
-
-func (d *DeviceMeta) GetDeviceModel() string {
-	return d.DeviceModel
-}
-
-func (d *DeviceMeta) SetDeviceModel(model string) {
-	d.DeviceModel = model
 }
 
 type CreateOptions struct {

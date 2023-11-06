@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"harnsgateway/cmd/gateway/config"
 	"harnsgateway/cmd/gateway/options"
-	"harnsgateway/pkg/broker"
+	"harnsgateway/pkg/device"
 	"harnsgateway/pkg/gateway"
 	"harnsgateway/pkg/generic"
 	"k8s.io/klog/v2"
@@ -41,7 +41,7 @@ func NewServer(router *gin.Engine, o *options.Options, config *config.Config) (*
 
 func (s *Server) InstallHandlers() {
 	v1 := s.Router.Group("/api/v1")
-	broker.InstallHandler(v1, s.Config.CollectorMgr)
+	device.InstallHandler(v1, s.Config.DeviceMgr)
 	gateway.InstallHandler(v1, s.Config.GatewayMgr)
 }
 
@@ -76,7 +76,7 @@ func (s *Server) Serve() (func(ctx context.Context), error) {
 
 	return func(ctx context.Context) {
 		srv.SetKeepAlivesEnabled(false)
-		if err := s.Config.CollectorMgr.Shutdown(ctx); err != nil {
+		if err := s.Config.DeviceMgr.Shutdown(ctx); err != nil {
 			klog.Error(err)
 		}
 		if err := srv.Shutdown(ctx); err != nil {

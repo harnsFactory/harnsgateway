@@ -5,7 +5,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/spf13/pflag"
 	"harnsgateway/cmd/gateway/config"
-	"harnsgateway/pkg/broker"
+	"harnsgateway/pkg/device"
 	"harnsgateway/pkg/gateway"
 	"harnsgateway/pkg/generic"
 	baseoptions "harnsgateway/pkg/generic/options"
@@ -17,7 +17,7 @@ import (
 type Options struct {
 	Port           string        `json:"port"`
 	Wait           time.Duration `json:"graceful-timeout"`
-	MqttBrokerUrls []string      `json:"mqtt-broker-urls"`
+	MqttBrokerUrls []string      `json:"mqtt-device-urls"`
 	MqttUsername   string        `json:"mqtt-username"`
 	MqttPassword   string        `json:"mqtt-password"`
 	CertFile       string        `json:"cert-file"`
@@ -55,7 +55,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	// refer to node port assignment https://rancher.com/docs/rancher/v2.x/en/installation/requirements/ports/#commonly-used-ports
 	fs.StringVarP(&o.Port, "port", "P", o.Port, "Port exposed")
 	fs.DurationVar(&o.Wait, "graceful-timeout", o.Wait, "The duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
-	fs.StringSliceVarP(&o.MqttBrokerUrls, "mqtt-broker-urls", "", o.MqttBrokerUrls, "The MQTT broker urls. The format should be scheme://host:port Where \"scheme\" is one of \"tcp\", \"ssl\", or \"ws\"")
+	fs.StringSliceVarP(&o.MqttBrokerUrls, "mqtt-device-urls", "", o.MqttBrokerUrls, "The MQTT device urls. The format should be scheme://host:port Where \"scheme\" is one of \"tcp\", \"ssl\", or \"ws\"")
 	fs.StringVarP(&o.MqttUsername, "mqtt-username", "u", o.MqttUsername, "The MQTT username")
 	fs.StringVarP(&o.MqttPassword, "mqtt-password", "p", o.MqttPassword, "The MQTT password")
 	fs.StringVarP(&o.CertFile, "cert-file", "", o.CertFile, "The Cert file")
@@ -85,10 +85,10 @@ func (o *Options) Config(stopCh <-chan struct{}) (*config.Config, error) {
 		klog.ErrorS(token.Error(), "Failed to connect MQTT", "servers", o.MqttBrokerUrls)
 		return nil, token.Error()
 	}
-	collectorMgr := broker.NewCollectorManager(store, mqttClient, gatewayMeta, stopCh)
-	collectorMgr.Init()
+	deviceMgr := device.NewManager(store, mqttClient, gatewayMeta, stopCh)
+	deviceMgr.Init()
 
-	c.CollectorMgr = collectorMgr
+	c.DeviceMgr = deviceMgr
 	c.KeyFile = o.KeyFile
 	c.CertFile = o.CertFile
 	return c, nil

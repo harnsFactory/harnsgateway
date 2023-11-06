@@ -1,4 +1,4 @@
-package broker
+package device
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"harnsgateway/pkg/apis"
+	"harnsgateway/pkg/apis/response"
 	"harnsgateway/pkg/gateway"
 	"harnsgateway/pkg/generic"
 	"harnsgateway/pkg/runtime"
@@ -20,31 +21,31 @@ import (
 type Option func(*Manager)
 
 type Manager struct {
-	gatewayMeta       *gateway.GatewayMeta
-	mqttClient        mqtt.Client
-	mu                *sync.Mutex
-	deviceManager     map[string]DeviceManager
-	devices           *sync.Map
-	store             *generic.Store
-	collectors        map[string]runtime.Collector
-	collectorReturnCh map[string]chan *runtime.ParseVariableResult
-	stopCh            <-chan struct{}
-	restartCh         <-chan string
-	closers           []runtime.LabeledCloser
+	gatewayMeta    *gateway.GatewayMeta
+	mqttClient     mqtt.Client
+	mu             *sync.Mutex
+	deviceManager  map[string]DeviceManager
+	devices        *sync.Map
+	store          *generic.Store
+	brokers        map[string]runtime.Broker
+	brokerReturnCh map[string]chan *runtime.ParseVariableResult
+	stopCh         <-chan struct{}
+	restartCh      <-chan string
+	closers        []runtime.LabeledCloser
 }
 
-func NewCollectorManager(store *generic.Store, mqttClient mqtt.Client, gatewayMeta *gateway.GatewayMeta, stop <-chan struct{}, opts ...Option) *Manager {
+func NewManager(store *generic.Store, mqttClient mqtt.Client, gatewayMeta *gateway.GatewayMeta, stop <-chan struct{}, opts ...Option) *Manager {
 	m := &Manager{
-		gatewayMeta:       gatewayMeta,
-		mqttClient:        mqttClient,
-		mu:                &sync.Mutex{},
-		devices:           &sync.Map{},
-		deviceManager:     DeviceManagers,
-		collectors:        make(map[string]runtime.Collector, 0),
-		collectorReturnCh: make(map[string]chan *runtime.ParseVariableResult, 0),
-		store:             store,
-		stopCh:            stop,
-		restartCh:         make(chan string, 0),
+		gatewayMeta:    gatewayMeta,
+		mqttClient:     mqttClient,
+		mu:             &sync.Mutex{},
+		devices:        &sync.Map{},
+		deviceManager:  DeviceManagers,
+		brokers:        make(map[string]runtime.Broker, 0),
+		brokerReturnCh: make(map[string]chan *runtime.ParseVariableResult, 0),
+		store:          store,
+		stopCh:         stop,
+		restartCh:      make(chan string, 0),
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -96,7 +97,7 @@ func (m *Manager) CreateDevice(object v1.DeviceType) (runtime.Device, error) {
 	return rd, nil
 }
 
-func (m *Manager) deleteDevice(id string, version string) (runtime.Device, error) {
+func (m *Manager) DeleteDevice(id string, version string) (runtime.Device, error) {
 	device, err := m.GetDeviceById(id, false)
 	if err != nil {
 		return nil, err
@@ -123,7 +124,7 @@ func (m *Manager) deleteDevice(id string, version string) (runtime.Device, error
 	return device, nil
 }
 
-func (m *Manager) listDevices(filter *runtime.DeviceFilter, exploded bool) ([]runtime.Device, error) {
+func (m *Manager) ListDevices(filter *runtime.DeviceFilter, exploded bool) ([]runtime.Device, error) {
 	rds := make([]runtime.Device, 0)
 	predicates := runtime.ParseTypeFilter(filter)
 
@@ -155,38 +156,74 @@ func (m *Manager) listDevices(filter *runtime.DeviceFilter, exploded bool) ([]ru
 	return rds, nil
 }
 
+func (m *Manager) DeliverAction(id string, actions []map[string]interface{}) error {
+	device, err := m.GetDeviceById(id, false)
+	if err != nil {
+		return err
+	}
+
+	errs := &response.MultiError{}
+	legalActions := make(map[string]interface{}, 0)
+	variablesMap := device.GetVariablesMap()
+	for _, item := range actions {
+		for k, v := range item {
+			if _, exist := legalActions[k]; exist {
+				errs.Add(response.ErrResourceExists(k))
+				continue
+			}
+			if _, ok := variablesMap[k]; !ok {
+				errs.Add(response.ErrResourceNotFound(k))
+				continue
+			}
+			// todo define rw r w 类型
+
+			legalActions[k] = v
+		}
+	}
+
+	if errs.Len() > 0 {
+		return errs
+	}
+
+	if len(legalActions) == 0 {
+		return response.NewMultiError(response.ErrLegalActionNotFound)
+	}
+
+	return nil
+}
+
 func (m Manager) cancelCollect(obj runtime.Device) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if v, ok := m.collectors[obj.GetID()]; ok {
+	if v, ok := m.brokers[obj.GetID()]; ok {
 		v.Destroy(context.Background())
 	}
-	delete(m.collectors, obj.GetID())
-	delete(m.collectorReturnCh, obj.GetID())
+	delete(m.brokers, obj.GetID())
+	delete(m.brokerReturnCh, obj.GetID())
 	return nil
 }
 
 func (m *Manager) readyCollect(obj runtime.Device) error {
-	collector, results, err := generic.DeviceTypeCollectorMap[obj.GetDeviceType()](obj)
+	broker, results, err := generic.DeviceTypeBrokerMap[obj.GetDeviceType()](obj)
 	if err != nil {
-		klog.V(2).InfoS("Failed to create broker", "deviceId", obj.GetID())
+		klog.V(2).InfoS("Failed to create device", "deviceId", obj.GetID())
 		return err
 	}
-	if collector == nil {
+	if broker == nil {
 		klog.V(2).InfoS("Failed to collect device data", "deviceId", obj.GetID())
 		return err
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.collectors[obj.GetID()] = collector
-	m.collectorReturnCh[obj.GetID()] = results
+	m.brokers[obj.GetID()] = broker
+	m.brokerReturnCh[obj.GetID()] = results
 
 	topic := obj.GetTopic()
 	if len(topic) == 0 {
 		topic = fmt.Sprintf("data/%s/v1/%s", m.gatewayMeta.ID, obj.GetID())
 	}
 
-	collector.Collect(context.Background())
+	broker.Collect(context.Background())
 	go func(deviceId string, ch chan *runtime.ParseVariableResult) {
 		for {
 			select {
@@ -236,7 +273,7 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 }
 
 func (m *Manager) Shutdown(context context.Context) error {
-	for _, c := range m.collectors {
+	for _, c := range m.brokers {
 		c.Destroy(context)
 	}
 

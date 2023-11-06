@@ -26,7 +26,7 @@ tcp报文头(6)  +  地址(1)   +   pdu(253)   +  16位校验(2)  = 262
 
 // ModBusDataFrame 报文对应的数据点位
 
-type ModbusCollector struct {
+type ModbusBroker struct {
 	NeedCheckTransaction     bool
 	NeedCheckCrc16Sum        bool
 	ExitCh                   chan struct{}
@@ -38,10 +38,10 @@ type ModbusCollector struct {
 	CanCollect               bool
 }
 
-func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVariableResult, error) {
+func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableResult, error) {
 	device, ok := d.(*modbus.ModBusDevice)
 	if !ok {
-		klog.V(2).InfoS("Failed to new modbus tcp broker,device type not supported")
+		klog.V(2).InfoS("Failed to new modbus tcp device,device type not supported")
 		return nil, nil, modbus.ErrDeviceType
 	}
 
@@ -141,7 +141,7 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 		return nil, nil, nil
 	}
 
-	mtc := &ModbusCollector{
+	mtc := &ModbusBroker{
 		Device:                   device,
 		ExitCh:                   make(chan struct{}, 0),
 		FunctionCodeDataFrameMap: functionCodeDataFrameMap,
@@ -155,28 +155,28 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 	return mtc, mtc.VariableCh, nil
 }
 
-func (collector *ModbusCollector) Destroy(ctx context.Context) {
-	collector.ExitCh <- struct{}{}
-	collector.Clients.Destroy(ctx)
-	close(collector.VariableCh)
+func (broker *ModbusBroker) Destroy(ctx context.Context) {
+	broker.ExitCh <- struct{}{}
+	broker.Clients.Destroy(ctx)
+	close(broker.VariableCh)
 }
 
-func (collector *ModbusCollector) Collect(ctx context.Context) {
-	if collector.CanCollect {
+func (broker *ModbusBroker) Collect(ctx context.Context) {
+	if broker.CanCollect {
 		go func() {
 			for {
 				start := time.Now().Unix()
-				if !collector.poll(ctx) {
+				if !broker.poll(ctx) {
 					return
 				}
 				select {
-				case <-collector.ExitCh:
+				case <-broker.ExitCh:
 					return
 				default:
 					end := time.Now().Unix()
 					elapsed := end - start
-					if elapsed < int64(collector.Device.CollectorCycle) {
-						time.Sleep(time.Duration(int64(collector.Device.CollectorCycle)) * time.Second)
+					if elapsed < int64(broker.Device.CollectorCycle) {
+						time.Sleep(time.Duration(int64(broker.Device.CollectorCycle)) * time.Second)
 					}
 				}
 			}
@@ -184,27 +184,27 @@ func (collector *ModbusCollector) Collect(ctx context.Context) {
 	}
 }
 
-func (collector *ModbusCollector) poll(ctx context.Context) bool {
+func (broker *ModbusBroker) poll(ctx context.Context) bool {
 	select {
-	case <-collector.ExitCh:
+	case <-broker.ExitCh:
 		return false
 	default:
 		sw := &sync.WaitGroup{}
 		dfvCh := make(chan *modbus.ParseVariableResult, 0)
-		for _, DataFrames := range collector.FunctionCodeDataFrameMap {
+		for _, DataFrames := range broker.FunctionCodeDataFrameMap {
 			for _, frame := range DataFrames {
 				sw.Add(1)
-				go collector.message(ctx, frame, dfvCh, sw, collector.Clients)
+				go broker.message(ctx, frame, dfvCh, sw, broker.Clients)
 			}
 		}
-		go collector.rollVariable(ctx, dfvCh)
+		go broker.rollVariable(ctx, dfvCh)
 		sw.Wait()
 		close(dfvCh)
 		return true
 	}
 }
 
-func (collector *ModbusCollector) message(ctx context.Context, dataFrame *modbus.ModBusDataFrame, pvrCh chan<- *modbus.ParseVariableResult, sw *sync.WaitGroup, clients *modbus.Clients) {
+func (broker *ModbusBroker) message(ctx context.Context, dataFrame *modbus.ModBusDataFrame, pvrCh chan<- *modbus.ParseVariableResult, sw *sync.WaitGroup, clients *modbus.Clients) {
 	defer sw.Done()
 	defer func() {
 		if err := recover(); err != nil {
@@ -212,25 +212,25 @@ func (collector *ModbusCollector) message(ctx context.Context, dataFrame *modbus
 		}
 	}()
 	messenger, err := clients.GetMessenger(ctx)
-	defer collector.Clients.ReleaseMessenger(messenger)
+	defer broker.Clients.ReleaseMessenger(messenger)
 	if err != nil {
 		klog.V(2).InfoS("Failed to get messenger", "error", err)
-		if messenger, err = collector.Clients.NewMessenger(); err != nil {
+		if messenger, err = broker.Clients.NewMessenger(); err != nil {
 			return
 		}
 	}
 
 	var buf []byte
 
-	if err := collector.retry(func(messenger modbus.Messenger, dataFrame *modbus.ModBusDataFrame) error {
-		if collector.NeedCheckTransaction {
+	if err := broker.retry(func(messenger modbus.Messenger, dataFrame *modbus.ModBusDataFrame) error {
+		if broker.NeedCheckTransaction {
 			dataFrame.WriteTransactionId()
 		}
 		_, err := messenger.AskAtLeast(dataFrame.DataFrame, dataFrame.ResponseDataFrame, 9)
 		if err != nil {
 			return modbus.ErrModbusBadConn
 		}
-		buf, err = collector.ValidateAndExtractMessage(dataFrame)
+		buf, err = broker.ValidateAndExtractMessage(dataFrame)
 		if err != nil {
 			return modbus.ErrModbusServerBadResp
 		}
@@ -244,14 +244,14 @@ func (collector *ModbusCollector) message(ctx context.Context, dataFrame *modbus
 	pvrCh <- &modbus.ParseVariableResult{Err: nil, VariableSlice: dataFrame.ParseVariableValue(buf)}
 }
 
-func (collector *ModbusCollector) retry(fun func(messenger modbus.Messenger, dataFrame *modbus.ModBusDataFrame) error, messenger modbus.Messenger, dataFrame *modbus.ModBusDataFrame) error {
+func (broker *ModbusBroker) retry(fun func(messenger modbus.Messenger, dataFrame *modbus.ModBusDataFrame) error, messenger modbus.Messenger, dataFrame *modbus.ModBusDataFrame) error {
 	for i := 0; i < 3; i++ {
 		err := fun(messenger, dataFrame)
 		if err == nil {
 			return nil
 		} else if errors.Is(err, modbus.ErrModbusBadConn) {
 			messenger.Close()
-			newMessenger, err := collector.Clients.NewMessenger()
+			newMessenger, err := broker.Clients.NewMessenger()
 			if err != nil {
 				return err
 			}
@@ -264,10 +264,10 @@ func (collector *ModbusCollector) retry(fun func(messenger modbus.Messenger, dat
 	return modbus.ErrManyRetry
 }
 
-func (collector *ModbusCollector) ValidateAndExtractMessage(df *modbus.ModBusDataFrame) ([]byte, error) {
+func (broker *ModbusBroker) ValidateAndExtractMessage(df *modbus.ModBusDataFrame) ([]byte, error) {
 	buf := df.ResponseDataFrame[:]
 
-	if collector.NeedCheckTransaction {
+	if broker.NeedCheckTransaction {
 		transactionId := binutil.ParseUint16(buf[:])
 		if transactionId != df.TransactionId {
 			klog.V(2).InfoS("Failed to match message transaction id", "request transactionId", df.TransactionId, "response transactionId", transactionId)
@@ -288,7 +288,7 @@ func (collector *ModbusCollector) ValidateAndExtractMessage(df *modbus.ModBusDat
 	}
 
 	byteDataLength := buf[2]
-	if collector.NeedCheckCrc16Sum {
+	if broker.NeedCheckCrc16Sum {
 		if int(byteDataLength)+5 != len(buf) {
 			klog.V(2).InfoS("Failed to get message enough length")
 			return nil, modbus.ErrMessageDataLengthNotEnough
@@ -322,14 +322,14 @@ func (collector *ModbusCollector) ValidateAndExtractMessage(df *modbus.ModBusDat
 	return bb, nil
 }
 
-func (collector *ModbusCollector) rollVariable(ctx context.Context, ch chan *modbus.ParseVariableResult) {
-	rvs := make([]runtime.VariableValue, 0, collector.VariableCount)
+func (broker *ModbusBroker) rollVariable(ctx context.Context, ch chan *modbus.ParseVariableResult) {
+	rvs := make([]runtime.VariableValue, 0, broker.VariableCount)
 	errs := make([]error, 0)
 	for {
 		select {
 		case pvr, ok := <-ch:
 			if !ok {
-				collector.VariableCh <- &runtime.ParseVariableResult{Err: errs, VariableSlice: rvs}
+				broker.VariableCh <- &runtime.ParseVariableResult{Err: errs, VariableSlice: rvs}
 				return
 			} else if pvr.Err != nil {
 				errs = append(errs, pvr.Err...)

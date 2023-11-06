@@ -23,10 +23,10 @@ var DeviceTypeObjectMap = map[string]runtime.Device{
 	"s7":     &s7runtime.S7Device{},
 }
 
-type NewCollector func(object runtime.Device) (runtime.Collector, chan *runtime.ParseVariableResult, error)
+type NewBroker func(object runtime.Device) (runtime.Broker, chan *runtime.ParseVariableResult, error)
 
-var DeviceTypeCollectorMap = map[string]NewCollector{
-	"modbus": modbus.NewCollector,
-	"opcUa":  opcua.NewCollector,
-	"s7":     s7.NewCollector,
+var DeviceTypeBrokerMap = map[string]NewBroker{
+	"modbus": modbus.NewBroker,
+	"opcUa":  opcua.NewBroker,
+	"s7":     s7.NewBroker,
 }

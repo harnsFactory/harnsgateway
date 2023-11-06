@@ -1,4 +1,4 @@
-package broker
+package device
 
 import (
 	"harnsgateway/pkg/runtime"

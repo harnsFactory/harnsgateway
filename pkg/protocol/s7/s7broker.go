@@ -133,7 +133,7 @@ type VariableParse struct {
 	BlockSize          uint
 }
 
-type S7Collector struct {
+type S7Broker struct {
 	ExitCh                   chan struct{}
 	Device                   *s7runtime.S7Device
 	Clients                  *s7runtime.Clients
@@ -144,10 +144,10 @@ type S7Collector struct {
 	Endpoint                 string
 }
 
-func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVariableResult, error) {
+func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableResult, error) {
 	device, ok := d.(*s7runtime.S7Device)
 	if !ok {
-		klog.V(2).InfoS("Failed to new s7 broker,device type not supported")
+		klog.V(2).InfoS("Failed to new s7 device,device type not supported")
 		return nil, nil, s7runtime.ErrDeviceType
 	}
 	maxPduLength, err := model.S7Modelers[device.DeviceModel].GetS7DevicePDULength(device.Address)
@@ -238,7 +238,7 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 		return nil, nil, nil
 	}
 
-	s7c := &S7Collector{
+	s7c := &S7Broker{
 		Device:                   device,
 		ExitCh:                   make(chan struct{}, 0),
 		StoreAddressDataFrameMap: storeAddressDataFrameMap,
@@ -250,13 +250,13 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 	return s7c, s7c.VariableCh, nil
 }
 
-func (collector *S7Collector) Destroy(ctx context.Context) {
+func (collector *S7Broker) Destroy(ctx context.Context) {
 	collector.ExitCh <- struct{}{}
 	collector.Clients.Destroy(ctx)
 	close(collector.VariableCh)
 }
 
-func (collector *S7Collector) Collect(ctx context.Context) {
+func (collector *S7Broker) Collect(ctx context.Context) {
 	if collector.CanCollect {
 		go func() {
 			for {
@@ -279,7 +279,7 @@ func (collector *S7Collector) Collect(ctx context.Context) {
 	}
 }
 
-func (collector *S7Collector) poll(ctx context.Context) bool {
+func (collector *S7Broker) poll(ctx context.Context) bool {
 	select {
 	case <-collector.ExitCh:
 		return false
@@ -298,7 +298,7 @@ func (collector *S7Collector) poll(ctx context.Context) bool {
 		return true
 	}
 }
-func (collector *S7Collector) message(ctx context.Context, dataFrame *S7DataFrame, pvrCh chan<- *s7runtime.ParseVariableResult, sw *sync.WaitGroup, clients *s7runtime.Clients) {
+func (collector *S7Broker) message(ctx context.Context, dataFrame *S7DataFrame, pvrCh chan<- *s7runtime.ParseVariableResult, sw *sync.WaitGroup, clients *s7runtime.Clients) {
 	defer sw.Done()
 	defer func() {
 		if err := recover(); err != nil {
@@ -334,7 +334,7 @@ func (collector *S7Collector) message(ctx context.Context, dataFrame *S7DataFram
 	pvrCh <- &s7runtime.ParseVariableResult{Err: nil, VariableSlice: dataFrame.ParseVariableValue(buf[21:])}
 }
 
-func (collector *S7Collector) retry(fun func(messenger s7runtime.Messenger, dataFrame *S7DataFrame) error, messenger s7runtime.Messenger, dataFrame *S7DataFrame) error {
+func (collector *S7Broker) retry(fun func(messenger s7runtime.Messenger, dataFrame *S7DataFrame) error, messenger s7runtime.Messenger, dataFrame *S7DataFrame) error {
 	for i := 0; i < 3; i++ {
 		err := fun(messenger, dataFrame)
 		if err == nil {
@@ -354,7 +354,7 @@ func (collector *S7Collector) retry(fun func(messenger s7runtime.Messenger, data
 	return s7runtime.ErrManyRetry
 }
 
-func (collector *S7Collector) rollVariable(ctx context.Context, ch chan *s7runtime.ParseVariableResult) {
+func (collector *S7Broker) rollVariable(ctx context.Context, ch chan *s7runtime.ParseVariableResult) {
 	rvs := make([]runtime.VariableValue, 0, collector.VariableCount)
 	errs := make([]error, 0)
 	for {

@@ -20,7 +20,7 @@ type OpuUaDataFrame struct {
 	RequestVariables *ua.ReadRequest
 }
 
-type OpcUaCollector struct {
+type OpcUaBroker struct {
 	ExitCh                     chan struct{}
 	Device                     *opcuaruntime.OpcUaDevice
 	Clients                    *opcuaruntime.Clients
@@ -30,10 +30,10 @@ type OpcUaCollector struct {
 	CanCollect                 bool
 }
 
-func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVariableResult, error) {
+func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableResult, error) {
 	device, ok := d.(*opcuaruntime.OpcUaDevice)
 	if !ok {
-		klog.V(2).InfoS("Failed to new opc ua broker,device type not supported")
+		klog.V(2).InfoS("Failed to new opc ua device,device type not supported")
 		return nil, nil, opcuaruntime.ErrDeviceType
 	}
 
@@ -73,7 +73,7 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 		klog.V(2).InfoS("Failed to collect from OPC server", "error", err, "deviceId", device.ID)
 		return nil, nil, err
 	}
-	mtc := &OpcUaCollector{
+	mtc := &OpcUaBroker{
 		Device:                     device,
 		ExitCh:                     make(chan struct{}, 0),
 		NamespaceVariableDataFrame: namespaceVariableDataFrame,
@@ -85,28 +85,28 @@ func NewCollector(d runtime.Device) (runtime.Collector, chan *runtime.ParseVaria
 	return mtc, mtc.VariableCh, nil
 }
 
-func (collector *OpcUaCollector) Destroy(ctx context.Context) {
-	collector.ExitCh <- struct{}{}
-	collector.Clients.Destroy(ctx)
-	close(collector.VariableCh)
+func (broker *OpcUaBroker) Destroy(ctx context.Context) {
+	broker.ExitCh <- struct{}{}
+	broker.Clients.Destroy(ctx)
+	close(broker.VariableCh)
 }
 
-func (collector *OpcUaCollector) Collect(ctx context.Context) {
-	if collector.CanCollect {
+func (broker *OpcUaBroker) Collect(ctx context.Context) {
+	if broker.CanCollect {
 		go func() {
 			for {
 				start := time.Now().Unix()
-				if !collector.poll(ctx) {
+				if !broker.poll(ctx) {
 					return
 				}
 				select {
-				case <-collector.ExitCh:
+				case <-broker.ExitCh:
 					return
 				default:
 					end := time.Now().Unix()
 					elapsed := end - start
-					if elapsed < int64(collector.Device.CollectorCycle) {
-						time.Sleep(time.Duration(int64(collector.Device.CollectorCycle)) * time.Second)
+					if elapsed < int64(broker.Device.CollectorCycle) {
+						time.Sleep(time.Duration(int64(broker.Device.CollectorCycle)) * time.Second)
 					}
 				}
 			}
@@ -114,18 +114,18 @@ func (collector *OpcUaCollector) Collect(ctx context.Context) {
 	}
 }
 
-func (collector *OpcUaCollector) poll(ctx context.Context) bool {
+func (broker *OpcUaBroker) poll(ctx context.Context) bool {
 	select {
-	case <-collector.ExitCh:
+	case <-broker.ExitCh:
 		return false
 	default:
 		sw := &sync.WaitGroup{}
 		dfvCh := make(chan *opcuaruntime.ParseVariableResult, 0)
-		for _, dataFrames := range collector.NamespaceVariableDataFrame {
+		for _, dataFrames := range broker.NamespaceVariableDataFrame {
 			sw.Add(1)
-			go collector.message(ctx, dataFrames, dfvCh, sw)
+			go broker.message(ctx, dataFrames, dfvCh, sw)
 		}
-		go collector.rollVariable(ctx, dfvCh)
+		go broker.rollVariable(ctx, dfvCh)
 		sw.Wait()
 		close(dfvCh)
 		return true
@@ -133,16 +133,16 @@ func (collector *OpcUaCollector) poll(ctx context.Context) bool {
 
 }
 
-func (collector *OpcUaCollector) message(ctx context.Context, dataFrame *OpuUaDataFrame, pvrCh chan *opcuaruntime.ParseVariableResult, sw *sync.WaitGroup) {
+func (broker *OpcUaBroker) message(ctx context.Context, dataFrame *OpuUaDataFrame, pvrCh chan *opcuaruntime.ParseVariableResult, sw *sync.WaitGroup) {
 	defer sw.Done()
-	messenger, err := collector.Clients.GetMessenger(ctx)
+	messenger, err := broker.Clients.GetMessenger(ctx)
 	if err != nil {
 		pvrCh <- &opcuaruntime.ParseVariableResult{Err: []error{err}}
 	}
-	defer collector.Clients.ReleaseMessenger(messenger)
+	defer broker.Clients.ReleaseMessenger(messenger)
 
 	var response *ua.ReadResponse
-	if err := collector.retry(func(messenger opcuaruntime.Messenger, dataFrame *OpuUaDataFrame) error {
+	if err := broker.retry(func(messenger opcuaruntime.Messenger, dataFrame *OpuUaDataFrame) error {
 		response, err = messenger.Read(ctx, dataFrame.RequestVariables)
 		return err
 	}, messenger, dataFrame); err != nil {
@@ -167,7 +167,7 @@ func (collector *OpcUaCollector) message(ctx context.Context, dataFrame *OpuUaDa
 	pvrCh <- &opcuaruntime.ParseVariableResult{Err: nil, VariableSlice: variables}
 }
 
-func (collector *OpcUaCollector) retry(fun func(m opcuaruntime.Messenger, dataFrame *OpuUaDataFrame) error, m opcuaruntime.Messenger, dataFrame *OpuUaDataFrame) error {
+func (broker *OpcUaBroker) retry(fun func(m opcuaruntime.Messenger, dataFrame *OpuUaDataFrame) error, m opcuaruntime.Messenger, dataFrame *OpuUaDataFrame) error {
 	for i := 0; i < 3; i++ {
 		err := fun(m, dataFrame)
 		if err == nil {
@@ -175,7 +175,7 @@ func (collector *OpcUaCollector) retry(fun func(m opcuaruntime.Messenger, dataFr
 		}
 		switch {
 		case err == io.EOF && m.Available():
-			newMessenger, err := collector.Clients.NewMessenger()
+			newMessenger, err := broker.Clients.NewMessenger()
 			if err != nil {
 				return err
 			}
@@ -183,7 +183,7 @@ func (collector *OpcUaCollector) retry(fun func(m opcuaruntime.Messenger, dataFr
 			i = i - 1
 			continue
 		case errors.Is(err, ua.StatusBadSessionIDInvalid):
-			newMessenger, err := collector.Clients.NewMessenger()
+			newMessenger, err := broker.Clients.NewMessenger()
 			if err != nil {
 				return err
 			}
@@ -191,7 +191,7 @@ func (collector *OpcUaCollector) retry(fun func(m opcuaruntime.Messenger, dataFr
 			i = i - 1
 			continue
 		case errors.Is(err, ua.StatusBadSessionNotActivated):
-			newMessenger, err := collector.Clients.NewMessenger()
+			newMessenger, err := broker.Clients.NewMessenger()
 			if err != nil {
 				return err
 			}
@@ -207,14 +207,14 @@ func (collector *OpcUaCollector) retry(fun func(m opcuaruntime.Messenger, dataFr
 	return opcuaruntime.ErrManyRetry
 }
 
-func (collector *OpcUaCollector) rollVariable(ctx context.Context, ch chan *opcuaruntime.ParseVariableResult) {
-	rvs := make([]runtime.VariableValue, 0, collector.VariableCount)
+func (broker *OpcUaBroker) rollVariable(ctx context.Context, ch chan *opcuaruntime.ParseVariableResult) {
+	rvs := make([]runtime.VariableValue, 0, broker.VariableCount)
 	errs := make([]error, 0)
 	for {
 		select {
 		case pvr, ok := <-ch:
 			if !ok {
-				collector.VariableCh <- &runtime.ParseVariableResult{Err: errs, VariableSlice: rvs}
+				broker.VariableCh <- &runtime.ParseVariableResult{Err: errs, VariableSlice: rvs}
 				return
 			} else if pvr.Err != nil {
 				errs = append(errs, pvr.Err...)

@@ -5,6 +5,8 @@ import (
 	"harnsgateway/pkg/utils/binutil"
 )
 
+var _ runtime.Device = (*ModBusDevice)(nil)
+
 type Variable struct {
 	DataType     runtime.DataType `json:"dataType"`               // bool、int16、float32、float64、int32、int64、uint16
 	Name         string           `json:"name"`                   // 变量名称
@@ -35,13 +37,18 @@ func (v *Variable) SetVariableName(name string) {
 
 type ModBusDevice struct {
 	runtime.DeviceMeta
-	CollectorCycle   uint                 `json:"collectorCycle"`                    // 采集周期
-	VariableInterval uint                 `json:"variableInterval"`                  // 变量间隔
-	Address          *Address             `json:"address"`                           // IP地址\串口地址
-	Slave            uint                 `json:"slave"`                             // 下位机号
-	MemoryLayout     runtime.MemoryLayout `json:"memoryLayout"`                      // 内存布局 DCBA CDAB BADC ABCD
-	PositionAddress  uint                 `json:"positionAddress"`                   // 起始地址
-	Variables        []*Variable          `json:"variables" binding:"required,dive"` // 自定义变量
+	CollectorCycle   uint                             `json:"collectorCycle"`                    // 采集周期
+	VariableInterval uint                             `json:"variableInterval"`                  // 变量间隔
+	Address          *Address                         `json:"address"`                           // IP地址\串口地址
+	Slave            uint                             `json:"slave"`                             // 下位机号
+	MemoryLayout     runtime.MemoryLayout             `json:"memoryLayout"`                      // 内存布局 DCBA CDAB BADC ABCD
+	PositionAddress  uint                             `json:"positionAddress"`                   // 起始地址
+	Variables        []*Variable                      `json:"variables" binding:"required,dive"` // 自定义变量
+	VariablesMap     map[string]runtime.VariableValue `json:"-"`                                 // 自定义变量Map
+}
+
+func (m *ModBusDevice) GetVariablesMap() map[string]runtime.VariableValue {
+	return m.VariablesMap
 }
 
 type Address struct {

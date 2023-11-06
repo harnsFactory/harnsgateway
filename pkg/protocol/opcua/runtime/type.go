@@ -4,6 +4,8 @@ import (
 	"harnsgateway/pkg/runtime"
 )
 
+var _ runtime.Device = (*OpcUaDevice)(nil)
+
 type Variable struct {
 	DataType     runtime.DataType `json:"dataType"`               // bool、int16、float32、float64、int32、int64、uint16
 	Name         string           `json:"name"`                   // 变量名称
@@ -31,10 +33,15 @@ func (v *Variable) SetVariableName(name string) {
 
 type OpcUaDevice struct {
 	runtime.DeviceMeta
-	CollectorCycle   uint        `json:"collectorCycle"`                    // 采集周期
-	VariableInterval uint        `json:"variableInterval"`                  // 变量间隔
-	Address          *Address    `json:"address"`                           // IP地址
-	Variables        []*Variable `json:"variables" binding:"required,dive"` // 自定义变量
+	CollectorCycle   uint                             `json:"collectorCycle"`                    // 采集周期
+	VariableInterval uint                             `json:"variableInterval"`                  // 变量间隔
+	Address          *Address                         `json:"address"`                           // IP地址
+	Variables        []*Variable                      `json:"variables" binding:"required,dive"` // 自定义变量
+	VariablesMap     map[string]runtime.VariableValue `json:"-"`
+}
+
+func (o *OpcUaDevice) GetVariablesMap() map[string]runtime.VariableValue {
+	return o.VariablesMap
 }
 
 type Address struct {

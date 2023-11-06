@@ -1,4 +1,4 @@
-package broker
+package device
 
 import (
 	"bytes"
@@ -22,7 +22,7 @@ func InstallHandler(group *gin.RouterGroup, mgr *Manager) {
 	group.DELETE("/devices/:id", deleteDevice(mgr))
 	group.GET("/devices", listDevices(mgr))
 	group.GET("/devices/:id", getDeviceById(mgr))
-	group.PUT("/devices/:id/control", controlDeviceById(mgr))
+	group.PUT("/devices/:id/action", controlDeviceById(mgr))
 }
 
 func createDevice(mgr *Manager) gin.HandlerFunc {
@@ -64,25 +64,25 @@ func createDevice(mgr *Manager) gin.HandlerFunc {
 }
 
 func deleteDevice(mgr *Manager) gin.HandlerFunc {
-	return func(context *gin.Context) {
-		id := context.Param("id")
-		eTag := context.GetHeader(apis.IfMatch)
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		eTag := c.GetHeader(apis.IfMatch)
 		if len(eTag) == 0 {
-			context.Status(http.StatusPreconditionRequired)
+			c.Status(http.StatusPreconditionRequired)
 			return
 		}
-		device, err := mgr.deleteDevice(id, eTag)
+		device, err := mgr.DeleteDevice(id, eTag)
 		if err != nil {
 			if os.IsNotExist(err) {
-				context.Status(http.StatusNotFound)
+				c.Status(http.StatusNotFound)
 			} else if errors.Is(err, apis.ErrMismatch) {
-				context.Status(http.StatusPreconditionFailed)
+				c.Status(http.StatusPreconditionFailed)
 			} else {
-				context.JSON(http.StatusBadRequest, response.NewMultiError(err))
+				c.JSON(http.StatusBadRequest, response.NewMultiError(err))
 			}
 			return
 		}
-		context.JSON(http.StatusOK, device)
+		c.JSON(http.StatusOK, device)
 	}
 }
 
@@ -101,7 +101,7 @@ func listDevices(mgr *Manager) gin.HandlerFunc {
 			}
 			exploded, _ = strconv.ParseBool(query.Get("exploded"))
 		}
-		rds, _ := mgr.listDevices(&filter, exploded)
+		rds, _ := mgr.ListDevices(&filter, exploded)
 
 		c.JSON(http.StatusOK, &runtime.ResponseModel{Devices: rds})
 	}
@@ -132,5 +132,23 @@ func getDeviceById(mgr *Manager) gin.HandlerFunc {
 }
 
 func controlDeviceById(mgr *Manager) gin.HandlerFunc {
-	return nil
+	return func(c *gin.Context) {
+		id := c.Param("id")
+
+		var actions []map[string]interface{}
+		if err := json.NewDecoder(c.Request.Body).Decode(&actions); err != nil {
+			klog.V(3).InfoS("Failed to parse action", "err", err)
+			c.JSON(http.StatusBadRequest, response.NewMultiError(response.ErrMalformedJSON))
+			return
+		}
+
+		err := mgr.DeliverAction(id, actions)
+
+		if err != nil {
+			c.JSON(http.StatusBadRequest, response.NewMultiError(err))
+			return
+		}
+
+		c.Status(http.StatusAccepted)
+	}
 }

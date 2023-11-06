@@ -1,13 +1,13 @@
 package config
 
 import (
-	"harnsgateway/pkg/broker"
+	"harnsgateway/pkg/device"
 	"harnsgateway/pkg/gateway"
 )
 
 type Config struct {
-	CollectorMgr *broker.Manager
-	GatewayMgr   *gateway.Manager
-	CertFile     string
-	KeyFile      string
+	DeviceMgr  *device.Manager
+	GatewayMgr *gateway.Manager
+	CertFile   string
+	KeyFile    string
 }

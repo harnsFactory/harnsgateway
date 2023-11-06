@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+var _ runtime.Device = (*S7Device)(nil)
+
 type Variable struct {
 	DataType     runtime.DataType `json:"dataType"`               // bool、int16、float32、float64、int32、int64、uint16
 	Name         string           `json:"name"`                   // 变量名称
@@ -14,6 +16,22 @@ type Variable struct {
 	Rate         float64          `json:"rate,omitempty"`         // 比率
 	DefaultValue interface{}      `json:"defaultValue,omitempty"` // 默认值
 	Value        interface{}      `json:"value,omitempty"`        // 值
+}
+
+func (v *Variable) SetValue(value interface{}) {
+	v.Value = value
+}
+
+func (v *Variable) GetValue() interface{} {
+	return v.Value
+}
+
+func (v *Variable) GetVariableName() string {
+	return v.Name
+}
+
+func (v *Variable) SetVariableName(name string) {
+	v.Name = name
 }
 
 func (v *Variable) DataRequestLength(area S7StoreArea) uint16 {
@@ -240,28 +258,17 @@ func (v *Variable) shortening(byteAddress string) bool {
 	return true
 }
 
-func (v *Variable) SetValue(value interface{}) {
-	v.Value = value
-}
-
-func (v *Variable) GetValue() interface{} {
-	return v.Value
-}
-
-func (v *Variable) GetVariableName() string {
-	return v.Name
-}
-
-func (v *Variable) SetVariableName(name string) {
-	v.Name = name
-}
-
 type S7Device struct {
 	runtime.DeviceMeta
-	CollectorCycle   uint        `json:"collectorCycle"`                    // 采集周期
-	VariableInterval uint        `json:"variableInterval"`                  // 变量间隔
-	Address          *S7Address  `json:"address"`                           // IP地址
-	Variables        []*Variable `json:"variables" binding:"required,dive"` // 自定义变量
+	CollectorCycle   uint                             `json:"collectorCycle"`                    // 采集周期
+	VariableInterval uint                             `json:"variableInterval"`                  // 变量间隔
+	Address          *S7Address                       `json:"address"`                           // IP地址
+	Variables        []*Variable                      `json:"variables" binding:"required,dive"` // 自定义变量
+	VariablesMap     map[string]runtime.VariableValue `json:"-"`
+}
+
+func (s *S7Device) GetVariablesMap() map[string]runtime.VariableValue {
+	return s.VariablesMap
 }
 
 type S7Address struct {

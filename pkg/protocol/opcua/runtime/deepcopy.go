@@ -2,7 +2,7 @@ package runtime
 
 import "harnsgateway/pkg/runtime"
 
-func (d *OpcUaDevice) DeepCopyObject() runtime.RunObject {
-	out := *d
+func (o *OpcUaDevice) DeepCopyObject() runtime.RunObject {
+	out := *o
 	return &out
 }

@@ -137,3 +137,10 @@ func convert(infos []string) []interface{} {
 	}
 	return s
 }
+
+func ErrResourceExists(resource string) *responseError {
+	return generateError(ErrCodeResourceExists, resource)
+}
+func ErrResourceNotFound(resource string) *responseError {
+	return generateError(ErrCodeResourceNotFound, resource)
+}

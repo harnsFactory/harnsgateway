@@ -18,7 +18,7 @@ type ObjectMetaAccessor interface {
 	GetObjectMeta() Object
 }
 
-type Collector interface {
+type Broker interface {
 	Collect(ctx context.Context)
 	Destroy(ctx context.Context)
 }
@@ -47,9 +47,14 @@ type Publisher interface {
 	GetTopic() string
 }
 
+type VariablesMap interface {
+	GetVariablesMap() map[string]VariableValue
+}
+
 type Device interface {
 	Object
 	Publisher
+	VariablesMap
 	GetDeviceCode() string
 	SetDeviceCode(string)
 	GetDeviceType() string
@@ -60,11 +65,61 @@ type Device interface {
 	SetCollectStatus(bool)
 }
 
-type Time time.Time
+type DeviceMeta struct {
+	ObjectMeta
+	PublishMeta
+	DeviceCode    string `json:"deviceCode"`
+	DeviceType    string `json:"deviceType"`
+	DeviceModel   string `json:"deviceModel"`
+	CollectStatus bool   `json:"-"`
+}
 
-type TimeZone time.Location
+func (d *DeviceMeta) GetVariablesMap() map[string]VariableValue {
+	return map[string]VariableValue{}
+}
 
-type Predicate func(value interface{}) bool
+func (d *DeviceMeta) GetDeviceCode() string {
+	return d.DeviceCode
+}
+
+func (d *DeviceMeta) SetDeviceCode(s string) {
+	d.DeviceCode = s
+}
+
+func (d *DeviceMeta) GetDeviceType() string {
+	return d.DeviceType
+}
+
+func (d *DeviceMeta) SetDeviceType(s string) {
+	d.DeviceType = s
+}
+
+func (d *DeviceMeta) GetCollectStatus() bool {
+	return d.CollectStatus
+}
+
+func (d *DeviceMeta) SetCollectStatus(collect bool) {
+	d.CollectStatus = collect
+}
+
+func (d *DeviceMeta) GetDeviceModel() string {
+	return d.DeviceModel
+}
+
+func (d *DeviceMeta) SetDeviceModel(model string) {
+	d.DeviceModel = model
+}
+
+// func (d *DeviceMeta) GetVariables() map[string]VariableValue {
+// 	return d.Variables
+// }
+
+type ObjectMeta struct {
+	Name    string    `json:"name"`
+	ID      string    `json:"id"`
+	Version string    `json:"eTag"`
+	ModTime time.Time `json:"modTime"`
+}
 
 func (meta *ObjectMeta) GetName() string              { return meta.Name }
 func (meta *ObjectMeta) SetName(name string)          { meta.Name = name }
@@ -74,6 +129,13 @@ func (meta *ObjectMeta) GetVersion() string           { return meta.Version }
 func (meta *ObjectMeta) SetVersion(version string)    { meta.Version = version }
 func (meta *ObjectMeta) GetModTime() time.Time        { return meta.ModTime }
 func (meta *ObjectMeta) SetModTime(modTime time.Time) { meta.ModTime = modTime }
+
+type PublishMeta struct {
+	Topic string `json:"topic"`
+}
+
+func (pm *PublishMeta) GetTopic() string      { return pm.Topic }
+func (pm *PublishMeta) SetTopic(topic string) { pm.Topic = topic }
 
 func Accessor(obj interface{}) (Object, error) {
 	switch t := obj.(type) {
