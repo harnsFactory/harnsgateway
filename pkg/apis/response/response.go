@@ -144,3 +144,44 @@ func ErrResourceExists(resource string) *responseError {
 func ErrResourceNotFound(resource string) *responseError {
 	return generateError(ErrCodeResourceNotFound, resource)
 }
+func ErrBooleanInvalid(infos ...string) *responseError {
+	if len(infos) == 1 {
+		infos = append(infos, "")
+	}
+	return generateError(ErrCodeBooleanInvalid, convert(infos)...)
+}
+
+func ErrInteger16Invalid(infos ...string) *responseError {
+	if len(infos) == 1 {
+		infos = append(infos, "")
+	}
+	return generateError(ErrCodeInteger16Invalid, convert(infos)...)
+}
+
+func ErrInteger32Invalid(infos ...string) *responseError {
+	if len(infos) == 1 {
+		infos = append(infos, "")
+	}
+	return generateError(ErrCodeInteger32Invalid, convert(infos)...)
+}
+
+func ErrInteger64Invalid(infos ...string) *responseError {
+	if len(infos) == 1 {
+		infos = append(infos, "")
+	}
+	return generateError(ErrCodeInteger32Invalid, convert(infos)...)
+}
+
+func ErrFloat32Invalid(infos ...string) *responseError {
+	if len(infos) == 1 {
+		infos = append(infos, "")
+	}
+	return generateError(ErrCodeFloat32Invalid, convert(infos)...)
+}
+
+func ErrFloat64Invalid(infos ...string) *responseError {
+	if len(infos) == 1 {
+		infos = append(infos, "")
+	}
+	return generateError(ErrCodeFloat64Invalid, convert(infos)...)
+}

@@ -3,6 +3,7 @@ package modbus
 import (
 	"context"
 	"errors"
+	"harnsgateway/pkg/apis/response"
 	"harnsgateway/pkg/protocol/modbus/model"
 	modbus "harnsgateway/pkg/protocol/modbus/runtime"
 	"harnsgateway/pkg/runtime"
@@ -10,6 +11,7 @@ import (
 	"harnsgateway/pkg/utils/crcutil"
 	"k8s.io/klog/v2"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -186,6 +188,78 @@ func (broker *ModbusBroker) Collect(ctx context.Context) {
 }
 
 func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]interface{}) error {
+	variablesMap := broker.Device.GetVariablesMap()
+	action := make(map[string]interface{}, len(obj))
+	for name, v := range obj {
+		vv, _ := variablesMap[name]
+		variableValue := vv.(*modbus.Variable)
+		switch variableValue.DataType {
+		case runtime.BOOL:
+			switch v.(type) {
+			case bool:
+				action[name] = v
+			case string:
+				b, err := strconv.ParseBool(v.(string))
+				if err == nil {
+					action[name] = b
+				} else {
+					return response.ErrBooleanInvalid(name)
+				}
+			default:
+				return response.ErrBooleanInvalid(name)
+			}
+		case runtime.INT16:
+			switch v.(type) {
+			case float64:
+				i := uint16(v.(float64))
+				action[name] = i
+			default:
+				return response.ErrInteger16Invalid(name)
+			}
+		case runtime.UINT16:
+			switch v.(type) {
+			case float64:
+				i := int16(v.(float64))
+				action[name] = i
+			default:
+				return response.ErrInteger16Invalid(name)
+			}
+		case runtime.INT32:
+			switch v.(type) {
+			case float64:
+				i := int32(v.(float64))
+				action[name] = i
+			default:
+				return response.ErrInteger32Invalid(name)
+			}
+		case runtime.INT64:
+			switch v.(type) {
+			case float64:
+				i := int64(v.(float64))
+				action[name] = i
+			default:
+				return response.ErrInteger64Invalid(name)
+			}
+		case runtime.FLOAT32:
+			switch v.(type) {
+			case float64:
+				i := float32(v.(float64))
+				action[name] = i
+			default:
+				return response.ErrFloat32Invalid(name)
+			}
+		case runtime.FLOAT64:
+			switch v.(type) {
+			case float64:
+				i := v.(float64)
+				action[name] = i
+			default:
+				return response.ErrFloat64Invalid(name)
+			}
+		default:
+			klog.V(3).InfoS("Unsupported dataType", "dataType", variableValue.DataType)
+		}
+	}
 	// TODO implement me
 	panic("implement me")
 }

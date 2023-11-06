@@ -9,6 +9,12 @@ const (
 	ErrCodeResourceExists              // 10003
 	ErrCodeResourceNotFound            // 10004
 	ErrCodeLegalActionNotFound         // 10005
+	ErrCodeBooleanInvalid              // 10006
+	ErrCodeInteger16Invalid            // 10007
+	ErrCodeInteger32Invalid            // 10008
+	ErrCodeInteger64Invalid            // 10009
+	ErrCodeFloat32Invalid              // 10008
+	ErrCodeFloat64Invalid              // 10009
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!
