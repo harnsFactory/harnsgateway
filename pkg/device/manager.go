@@ -189,7 +189,7 @@ func (m *Manager) DeliverAction(id string, actions []map[string]interface{}) err
 		return response.NewMultiError(response.ErrLegalActionNotFound)
 	}
 
-	return nil
+	return m.brokers[id].DeliverAction(context.Background(), legalActions)
 }
 
 func (m Manager) cancelCollect(obj runtime.Device) error {

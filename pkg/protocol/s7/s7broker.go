@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+var _ runtime.Broker = (*S7Broker)(nil)
+
 type S7Item struct {
 	RequestData  []byte
 	StartAddress uint // 响应报文中的item位置
@@ -250,28 +252,28 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 	return s7c, s7c.VariableCh, nil
 }
 
-func (collector *S7Broker) Destroy(ctx context.Context) {
-	collector.ExitCh <- struct{}{}
-	collector.Clients.Destroy(ctx)
-	close(collector.VariableCh)
+func (broker *S7Broker) Destroy(ctx context.Context) {
+	broker.ExitCh <- struct{}{}
+	broker.Clients.Destroy(ctx)
+	close(broker.VariableCh)
 }
 
-func (collector *S7Broker) Collect(ctx context.Context) {
-	if collector.CanCollect {
+func (broker *S7Broker) Collect(ctx context.Context) {
+	if broker.CanCollect {
 		go func() {
 			for {
 				start := time.Now().Unix()
-				if !collector.poll(ctx) {
+				if !broker.poll(ctx) {
 					return
 				}
 				select {
-				case <-collector.ExitCh:
+				case <-broker.ExitCh:
 					return
 				default:
 					end := time.Now().Unix()
 					elapsed := end - start
-					if elapsed < int64(collector.Device.CollectorCycle) {
-						time.Sleep(time.Duration(int64(collector.Device.CollectorCycle)) * time.Second)
+					if elapsed < int64(broker.Device.CollectorCycle) {
+						time.Sleep(time.Duration(int64(broker.Device.CollectorCycle)) * time.Second)
 					}
 				}
 			}
@@ -279,26 +281,31 @@ func (collector *S7Broker) Collect(ctx context.Context) {
 	}
 }
 
-func (collector *S7Broker) poll(ctx context.Context) bool {
+func (broker *S7Broker) DeliverAction(ctx context.Context, obj map[string]interface{}) error {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (broker *S7Broker) poll(ctx context.Context) bool {
 	select {
-	case <-collector.ExitCh:
+	case <-broker.ExitCh:
 		return false
 	default:
 		sw := &sync.WaitGroup{}
 		dfvCh := make(chan *s7runtime.ParseVariableResult, 0)
-		for _, dataFrames := range collector.StoreAddressDataFrameMap {
+		for _, dataFrames := range broker.StoreAddressDataFrameMap {
 			for _, frame := range dataFrames {
 				sw.Add(1)
-				go collector.message(ctx, frame, dfvCh, sw, collector.Clients)
+				go broker.message(ctx, frame, dfvCh, sw, broker.Clients)
 			}
 		}
-		go collector.rollVariable(ctx, dfvCh)
+		go broker.rollVariable(ctx, dfvCh)
 		sw.Wait()
 		close(dfvCh)
 		return true
 	}
 }
-func (collector *S7Broker) message(ctx context.Context, dataFrame *S7DataFrame, pvrCh chan<- *s7runtime.ParseVariableResult, sw *sync.WaitGroup, clients *s7runtime.Clients) {
+func (broker *S7Broker) message(ctx context.Context, dataFrame *S7DataFrame, pvrCh chan<- *s7runtime.ParseVariableResult, sw *sync.WaitGroup, clients *s7runtime.Clients) {
 	defer sw.Done()
 	defer func() {
 		if err := recover(); err != nil {
@@ -309,13 +316,13 @@ func (collector *S7Broker) message(ctx context.Context, dataFrame *S7DataFrame, 
 	defer clients.ReleaseMessenger(messenger)
 	if err != nil {
 		klog.V(2).InfoS("Failed to get tunnel", "error", err)
-		if messenger, err = collector.Clients.NewMessenger(); err != nil {
+		if messenger, err = broker.Clients.NewMessenger(); err != nil {
 			return
 		}
 	}
 
 	var buf []byte
-	if err := collector.retry(func(messenger s7runtime.Messenger, dataFrame *S7DataFrame) error {
+	if err := broker.retry(func(messenger s7runtime.Messenger, dataFrame *S7DataFrame) error {
 		least, err := messenger.AskAtLeast(dataFrame.DataFrame, dataFrame.ResponseDataFrame, 19)
 		if err != nil {
 			return s7runtime.ErrBadConn
@@ -334,14 +341,14 @@ func (collector *S7Broker) message(ctx context.Context, dataFrame *S7DataFrame, 
 	pvrCh <- &s7runtime.ParseVariableResult{Err: nil, VariableSlice: dataFrame.ParseVariableValue(buf[21:])}
 }
 
-func (collector *S7Broker) retry(fun func(messenger s7runtime.Messenger, dataFrame *S7DataFrame) error, messenger s7runtime.Messenger, dataFrame *S7DataFrame) error {
+func (broker *S7Broker) retry(fun func(messenger s7runtime.Messenger, dataFrame *S7DataFrame) error, messenger s7runtime.Messenger, dataFrame *S7DataFrame) error {
 	for i := 0; i < 3; i++ {
 		err := fun(messenger, dataFrame)
 		if err == nil {
 			return nil
 		} else if errors.Is(err, s7runtime.ErrBadConn) {
 			messenger.Close()
-			newMessenger, err := collector.Clients.NewMessenger()
+			newMessenger, err := broker.Clients.NewMessenger()
 			if err != nil {
 				return err
 			}
@@ -354,14 +361,14 @@ func (collector *S7Broker) retry(fun func(messenger s7runtime.Messenger, dataFra
 	return s7runtime.ErrManyRetry
 }
 
-func (collector *S7Broker) rollVariable(ctx context.Context, ch chan *s7runtime.ParseVariableResult) {
-	rvs := make([]runtime.VariableValue, 0, collector.VariableCount)
+func (broker *S7Broker) rollVariable(ctx context.Context, ch chan *s7runtime.ParseVariableResult) {
+	rvs := make([]runtime.VariableValue, 0, broker.VariableCount)
 	errs := make([]error, 0)
 	for {
 		select {
 		case pvr, ok := <-ch:
 			if !ok {
-				collector.VariableCh <- &runtime.ParseVariableResult{Err: errs, VariableSlice: rvs}
+				broker.VariableCh <- &runtime.ParseVariableResult{Err: errs, VariableSlice: rvs}
 				return
 			} else if pvr.Err != nil {
 				errs = append(errs, pvr.Err...)

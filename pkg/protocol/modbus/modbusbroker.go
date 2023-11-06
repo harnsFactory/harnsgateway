@@ -25,6 +25,7 @@ tcp报文头(6)  +  地址(1)   +   pdu(253)   +  16位校验(2)  = 262
 */
 
 // ModBusDataFrame 报文对应的数据点位
+var _ runtime.Broker = (*ModbusBroker)(nil)
 
 type ModbusBroker struct {
 	NeedCheckTransaction     bool
@@ -182,6 +183,11 @@ func (broker *ModbusBroker) Collect(ctx context.Context) {
 			}
 		}()
 	}
+}
+
+func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]interface{}) error {
+	// TODO implement me
+	panic("implement me")
 }
 
 func (broker *ModbusBroker) poll(ctx context.Context) bool {

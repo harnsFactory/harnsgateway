@@ -21,6 +21,7 @@ type ObjectMetaAccessor interface {
 type Broker interface {
 	Collect(ctx context.Context)
 	Destroy(ctx context.Context)
+	DeliverAction(ctx context.Context, obj map[string]interface{}) error
 }
 
 type VariableValue interface {

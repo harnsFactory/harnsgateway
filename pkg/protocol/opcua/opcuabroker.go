@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+var _ runtime.Broker = (*OpcUaBroker)(nil)
+
 // 一次最多1000个
 type OpuUaDataFrame struct {
 	Variables        []*opcuaruntime.Variable
@@ -112,6 +114,11 @@ func (broker *OpcUaBroker) Collect(ctx context.Context) {
 			}
 		}()
 	}
+}
+
+func (broker *OpcUaBroker) DeliverAction(ctx context.Context, obj map[string]interface{}) error {
+	// TODO implement me
+	panic("implement me")
 }
 
 func (broker *OpcUaBroker) poll(ctx context.Context) bool {
