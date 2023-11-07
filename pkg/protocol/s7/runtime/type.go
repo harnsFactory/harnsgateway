@@ -267,6 +267,13 @@ type S7Device struct {
 	VariablesMap     map[string]*Variable `json:"-"`
 }
 
+func (s *S7Device) IndexDevice() {
+	s.VariablesMap = make(map[string]*Variable)
+	for _, variable := range s.Variables {
+		s.VariablesMap[variable.Name] = variable
+	}
+}
+
 func (s *S7Device) GetVariablesMap() map[string]runtime.VariableValue {
 	vm := make(map[string]runtime.VariableValue)
 	for k, variable := range s.VariablesMap {

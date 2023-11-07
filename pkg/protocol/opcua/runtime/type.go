@@ -40,6 +40,13 @@ type OpcUaDevice struct {
 	VariablesMap     map[string]*Variable `json:"-"`
 }
 
+func (o *OpcUaDevice) IndexDevice() {
+	o.VariablesMap = make(map[string]*Variable)
+	for _, variable := range o.Variables {
+		o.VariablesMap[variable.Name] = variable
+	}
+}
+
 func (o *OpcUaDevice) GetVariablesMap() map[string]runtime.VariableValue {
 	vm := make(map[string]runtime.VariableValue)
 	for k, variable := range o.VariablesMap {

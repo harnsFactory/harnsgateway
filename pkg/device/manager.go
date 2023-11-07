@@ -55,9 +55,9 @@ func NewManager(store *generic.Store, mqttClient mqtt.Client, gatewayMeta *gatew
 
 func (m *Manager) Init() {
 	devices, _ := m.store.LoadResource()
-	for _, objects := range devices {
-		// objects.IndexDevice()
-		obj, _ := runtime.AccessorDevice(objects)
+	for _, object := range devices {
+		object.IndexDevice()
+		obj, _ := runtime.AccessorDevice(object)
 		m.devices.Store(obj.GetID(), obj)
 		if err := m.readyCollect(obj); err != nil {
 			klog.V(1).InfoS("Failed to start collect data", "deviceId", obj.GetID())
@@ -310,5 +310,6 @@ func (m *Manager) foldDevice(device runtime.Device) runtime.Device {
 		DeviceCode:    device.GetDeviceCode(),
 		DeviceType:    device.GetDeviceType(),
 		CollectStatus: device.GetCollectStatus(),
+		VariablesMap:  device.GetVariablesMap(),
 	}
 }

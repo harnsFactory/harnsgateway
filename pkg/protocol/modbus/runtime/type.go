@@ -47,6 +47,13 @@ type ModBusDevice struct {
 	VariablesMap     map[string]*Variable `json:"-"`                                 // 自定义变量Map
 }
 
+func (m *ModBusDevice) IndexDevice() {
+	m.VariablesMap = make(map[string]*Variable)
+	for _, variable := range m.Variables {
+		m.VariablesMap[variable.Name] = variable
+	}
+}
+
 func (m *ModBusDevice) GetVariablesMap() map[string]runtime.VariableValue {
 	vm := make(map[string]runtime.VariableValue)
 	for k, variable := range m.VariablesMap {

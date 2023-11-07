@@ -222,14 +222,14 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 		case runtime.INT16:
 			switch value.(type) {
 			case float64:
-				v.Value = uint16(value.(float64))
+				v.Value = int16(value.(float64))
 			default:
 				return response.ErrInteger16Invalid(name)
 			}
 		case runtime.UINT16:
 			switch value.(type) {
 			case float64:
-				v.Value = int16(value.(float64))
+				v.Value = uint16(value.(float64))
 			default:
 				return response.ErrInteger16Invalid(name)
 			}
@@ -275,7 +275,7 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 			bytes = append(bytes, make([]byte, 6)...)
 			binutil.WriteUint16BigEndian(bytes[0:], uint16(i))
 			binutil.WriteUint16BigEndian(bytes[2:], 0)
-			binutil.WriteUint16BigEndian(bytes[4:], uint16(7+len(dbs)))
+			binutil.WriteUint16BigEndian(bytes[4:], uint16(1+len(dbs)))
 		}
 		bytes = append(bytes, byte(broker.Device.Slave))
 		bytes = append(bytes, dbs...)
@@ -296,7 +296,7 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 
 	errs := &response.MultiError{}
 	for _, frame := range dataFrames {
-		rp := make([]byte, 0, 0)
+		rp := make([]byte, len(frame))
 		_, err = messenger.AskAtLeast(frame, rp, 9)
 		if err != nil {
 			errs.Add(modbus.ErrModbusBadConn)
