@@ -393,13 +393,13 @@ func (broker *ModbusBroker) ValidateAndExtractMessage(df *modbus.ModBusDataFrame
 	}
 
 	var bb []byte
-	switch buf[1] {
-	case 1, 2:
+	switch modbus.FunctionCode(buf[1]) {
+	case modbus.ReadCoilStatus, modbus.ReadInputStatus:
 		// 数组解压
 		bb = binutil.ExpandBool(buf[3:], int(byteDataLength))
-	case 3, 4, 23:
+	case modbus.ReadHoldRegister, modbus.ReadInputRegister:
 		bb = binutil.Dup(buf[3:])
-	case 5, 15, 6, 16:
+	case modbus.WriteSingleCoil, modbus.WriteSingleRegister, modbus.WriteMultipleCoil, modbus.WriteMultipleRegister:
 	default:
 		klog.V(2).InfoS("Unsupported function code", "functionCode", buf[1])
 	}
