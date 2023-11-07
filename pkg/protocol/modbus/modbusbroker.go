@@ -266,6 +266,16 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 		}
 		action = append(action, v)
 	}
+
+	messenger, err := broker.Clients.GetMessenger(ctx)
+	if err != nil {
+		klog.V(2).InfoS("Failed to get messenger", "error", err)
+		if messenger, err = broker.Clients.NewMessenger(); err != nil {
+			return err
+		}
+	}
+	defer broker.Clients.ReleaseMessenger(messenger)
+
 	return model.ModbusModelers[broker.Device.DeviceModel].ExecuteAction(action)
 }
 

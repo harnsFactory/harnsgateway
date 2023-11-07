@@ -102,6 +102,7 @@ func (m *ModbusTcp) GenerateReadMessage(slave uint, functionCode uint8, startAdd
 }
 
 func (m *ModbusTcp) ExecuteAction(variables []*modbus.Variable) error {
+
 	// TODO implement me
 	panic("implement me")
 }
