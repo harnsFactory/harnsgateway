@@ -77,7 +77,7 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 		var maxDataSize uint = 0
 		vps := make([]*modbus.VariableParse, 0)
 		switch modbus.FunctionCode(code) {
-		case modbus.ReadCoilStatus, modbus.WriteCoilStatus:
+		case modbus.ReadCoilStatus, modbus.ReadInputStatus:
 			dataFrameDataLength := startAddress + modbus.PerRequestMaxCoil
 			for i := 0; i < len(variables); i++ {
 				variable := variables[i]
@@ -98,7 +98,7 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 					i--
 				}
 			}
-		case modbus.ReadHoldRegister, modbus.WriteHoldRegister:
+		case modbus.ReadHoldRegister, modbus.ReadInputRegister:
 			dataFrameDataLength := startAddress + modbus.PerRequestMaxRegister
 			for i := 0; i < len(variables); i++ {
 				variable := variables[i]
@@ -189,19 +189,30 @@ func (broker *ModbusBroker) Collect(ctx context.Context) {
 
 func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]interface{}) error {
 	variablesMap := broker.Device.GetVariablesMap()
-	action := make(map[string]interface{}, len(obj))
-	for name, v := range obj {
+	action := make([]*modbus.Variable, 0, len(obj))
+
+	for name, value := range obj {
 		vv, _ := variablesMap[name]
 		variableValue := vv.(*modbus.Variable)
+
+		v := &modbus.Variable{
+			DataType:     variableValue.DataType,
+			Name:         variableValue.Name,
+			Address:      variableValue.Address,
+			Bits:         variableValue.Bits,
+			FunctionCode: variableValue.FunctionCode,
+			Rate:         variableValue.Rate,
+			Amount:       variableValue.Amount,
+		}
 		switch variableValue.DataType {
 		case runtime.BOOL:
-			switch v.(type) {
+			switch value.(type) {
 			case bool:
-				action[name] = v
+				v.Value = value
 			case string:
-				b, err := strconv.ParseBool(v.(string))
+				b, err := strconv.ParseBool(value.(string))
 				if err == nil {
-					action[name] = b
+					v.Value = b
 				} else {
 					return response.ErrBooleanInvalid(name)
 				}
@@ -209,59 +220,53 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 				return response.ErrBooleanInvalid(name)
 			}
 		case runtime.INT16:
-			switch v.(type) {
+			switch value.(type) {
 			case float64:
-				i := uint16(v.(float64))
-				action[name] = i
+				v.Value = uint16(value.(float64))
 			default:
 				return response.ErrInteger16Invalid(name)
 			}
 		case runtime.UINT16:
-			switch v.(type) {
+			switch value.(type) {
 			case float64:
-				i := int16(v.(float64))
-				action[name] = i
+				v.Value = int16(value.(float64))
 			default:
 				return response.ErrInteger16Invalid(name)
 			}
 		case runtime.INT32:
-			switch v.(type) {
+			switch value.(type) {
 			case float64:
-				i := int32(v.(float64))
-				action[name] = i
+				v.Value = int32(value.(float64))
 			default:
 				return response.ErrInteger32Invalid(name)
 			}
 		case runtime.INT64:
-			switch v.(type) {
+			switch value.(type) {
 			case float64:
-				i := int64(v.(float64))
-				action[name] = i
+				v.Value = int64(value.(float64))
 			default:
 				return response.ErrInteger64Invalid(name)
 			}
 		case runtime.FLOAT32:
-			switch v.(type) {
+			switch value.(type) {
 			case float64:
-				i := float32(v.(float64))
-				action[name] = i
+				v.Value = float32(value.(float64))
 			default:
 				return response.ErrFloat32Invalid(name)
 			}
 		case runtime.FLOAT64:
-			switch v.(type) {
+			switch value.(type) {
 			case float64:
-				i := v.(float64)
-				action[name] = i
+				v.Value = value.(float64)
 			default:
 				return response.ErrFloat64Invalid(name)
 			}
 		default:
 			klog.V(3).InfoS("Unsupported dataType", "dataType", variableValue.DataType)
 		}
+		action = append(action, v)
 	}
-	// TODO implement me
-	panic("implement me")
+	return model.ModbusModelers[broker.Device.DeviceModel].ExecuteAction(action)
 }
 
 func (broker *ModbusBroker) poll(ctx context.Context) bool {

@@ -40,9 +40,21 @@ type FunctionCode uint8
 
 const (
 	ReadCoilStatus FunctionCode = iota + 1
-	WriteCoilStatus
+	ReadInputStatus
 	ReadHoldRegister
-	WriteHoldRegister
+	ReadInputRegister
+	WriteSingleCoil
+	WriteSingleRegister
+	NOON7
+	NOON8
+	NOON9
+	NOON10
+	NOON11
+	NOON12
+	NOON13
+	NOON14
+	WriteMultipleCoil
+	WriteMultipleRegister
 )
 
 const (

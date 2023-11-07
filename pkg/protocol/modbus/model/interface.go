@@ -18,4 +18,5 @@ var ModbusModelers = map[string]ModbusModeler{
 type ModbusModeler interface {
 	GenerateReadMessage(slave uint, functionCode uint8, startAddress uint, maxDataSize uint, variables []*modbus.VariableParse, memoryLayout runtime.MemoryLayout) *modbus.ModBusDataFrame
 	NewClients(address *modbus.Address, dataFrameCount int) (*modbus.Clients, error)
+	ExecuteAction([]*modbus.Variable) error
 }

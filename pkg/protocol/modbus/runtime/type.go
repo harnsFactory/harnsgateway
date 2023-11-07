@@ -111,7 +111,7 @@ func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {
 	for _, vp := range df.Variables {
 		var value interface{}
 		switch FunctionCode(df.FunctionCode) {
-		case WriteCoilStatus, ReadCoilStatus:
+		case ReadInputStatus, ReadCoilStatus:
 			switch vp.Variable.DataType {
 			case runtime.BOOL:
 				v := int(data[vp.Start])
@@ -129,7 +129,7 @@ func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {
 			case runtime.FLOAT64:
 				value = float64(data[vp.Start])
 			}
-		case WriteHoldRegister, ReadHoldRegister:
+		case ReadInputRegister, ReadHoldRegister:
 			vpData := data[vp.Start:]
 			switch vp.Variable.DataType {
 			case runtime.BOOL:

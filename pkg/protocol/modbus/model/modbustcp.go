@@ -75,13 +75,13 @@ func (m *ModbusTcp) GenerateReadMessage(slave uint, functionCode uint8, startAdd
 
 	bytesLength := 0
 	switch modbus.FunctionCode(functionCode) {
-	case modbus.ReadCoilStatus, modbus.WriteCoilStatus:
+	case modbus.ReadCoilStatus, modbus.ReadInputStatus:
 		if maxDataSize%8 == 0 {
 			bytesLength = int(maxDataSize/8 + TcpNonDataLength)
 		} else {
 			bytesLength = int(maxDataSize/8 + 1 + TcpNonDataLength)
 		}
-	case modbus.ReadHoldRegister, modbus.WriteHoldRegister:
+	case modbus.ReadHoldRegister, modbus.ReadInputRegister:
 		bytesLength = int(maxDataSize*2 + TcpNonDataLength)
 	}
 
@@ -99,4 +99,9 @@ func (m *ModbusTcp) GenerateReadMessage(slave uint, functionCode uint8, startAdd
 	df.Variables = append(df.Variables, variables...)
 
 	return df
+}
+
+func (m *ModbusTcp) ExecuteAction(variables []*modbus.Variable) error {
+	// TODO implement me
+	panic("implement me")
 }
