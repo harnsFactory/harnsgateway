@@ -503,14 +503,62 @@ func (broker *ModbusBroker) generateActionBytes(memoryLayout runtime.MemoryLayou
 		switch modbus.FunctionCode(variable.FunctionCode) {
 		case modbus.ReadCoilStatus, modbus.ReadInputStatus:
 			switch variable.DataType {
-
+			// 65280
+			case runtime.BOOL:
+				fc = byte(modbus.WriteSingleCoil)
+				if variable.Value.(bool) {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
+				} else {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
+				}
+			case runtime.INT16:
+				fc = byte(modbus.WriteSingleCoil)
+				if variable.Value.(int16) > 0 {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
+				} else {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
+				}
+			case runtime.UINT16:
+				fc = byte(modbus.WriteSingleCoil)
+				if variable.Value.(uint16) > 0 {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
+				} else {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
+				}
+			case runtime.INT32:
+				fc = byte(modbus.WriteSingleCoil)
+				if variable.Value.(int32) > 0 {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
+				} else {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
+				}
+			case runtime.INT64:
+				fc = byte(modbus.WriteSingleCoil)
+				if variable.Value.(int64) > 0 {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
+				} else {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
+				}
+			case runtime.FLOAT32:
+				fc = byte(modbus.WriteSingleCoil)
+				if variable.Value.(float32) > 0 {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
+				} else {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
+				}
+			case runtime.FLOAT64:
+				fc = byte(modbus.WriteSingleCoil)
+				if variable.Value.(float64) > 0 {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
+				} else {
+					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
+				}
 			}
 		case modbus.ReadHoldRegister, modbus.ReadInputRegister:
 			switch variable.DataType {
 			case runtime.BOOL:
 				klog.V(2).InfoS("Unsupported bool variable with read hold register", "variableName", variable.Name)
 				// todo 需要先读取数据
-				continue
 			case runtime.INT16:
 				fc = byte(modbus.WriteSingleRegister)
 
