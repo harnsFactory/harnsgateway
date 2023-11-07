@@ -276,7 +276,7 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 	}
 	defer broker.Clients.ReleaseMessenger(messenger)
 
-	return model.ModbusModelers[broker.Device.DeviceModel].ExecuteAction(action)
+	return model.ModbusModelers[broker.Device.DeviceModel].ExecuteAction(messenger, action)
 }
 
 func (broker *ModbusBroker) poll(ctx context.Context) bool {

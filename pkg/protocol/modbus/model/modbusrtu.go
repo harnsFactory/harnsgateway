@@ -101,7 +101,7 @@ func (m *ModbusRtu) GenerateReadMessage(slave uint, functionCode uint8, startAdd
 	return df
 }
 
-func (m *ModbusRtu) ExecuteAction(variables []*modbus.Variable) error {
+func (m *ModbusRtu) ExecuteAction(messenger modbus.Messenger, variables []*modbus.Variable) error {
 	// TODO implement me
 	panic("implement me")
 }
