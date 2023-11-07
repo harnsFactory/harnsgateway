@@ -26,7 +26,7 @@ func ParseUint64BigEndian(b []byte) uint64 {
 }
 
 // BADC FEHG
-func ParseUint64BigEndianByteData(b []byte) uint64 {
+func ParseUint64BigEndianByteSwap(b []byte) uint64 {
 	return (uint64(b[1]) << 56) |
 		(uint64(b[0]) << 48) |
 		(uint64(b[3]) << 40) |
@@ -144,19 +144,13 @@ func ParseFloat32LittleEndianByteSwap(buf []byte) float32 {
 	return math.Float32frombits(val)
 }
 
-// ParseFloat64 解析
-func ParseFloat64(buf []byte) float64 {
-	val := ParseUint64(buf)
-	return math.Float64frombits(val)
-}
-
 func ParseFloat64BigEndian(buf []byte) float64 {
 	val := ParseUint64BigEndian(buf)
 	return math.Float64frombits(val)
 }
 
 func ParseFloat64BigEndianByteSwap(buf []byte) float64 {
-	val := ParseUint64BigEndianByteData(buf)
+	val := ParseUint64BigEndianByteSwap(buf)
 	return math.Float64frombits(val)
 }
 
@@ -171,13 +165,22 @@ func ParseFloat64LittleEndianByteSwap(buf []byte) float64 {
 	return math.Float64frombits(val)
 }
 
-// Uint32ToBytes 编码
-func Uint32ToBytes(value uint32) []byte {
+// Uint32ToBytesBigEndian 编码
+func Uint32ToBytesBigEndian(value uint32) []byte {
 	buf := make([]byte, 4)
 	buf[0] = byte(value >> 24)
 	buf[1] = byte(value >> 16)
 	buf[2] = byte(value >> 8)
 	buf[3] = byte(value)
+	return buf
+}
+
+func Uint32ToBytesBigEndianByteSwap(value uint32) []byte {
+	buf := make([]byte, 4)
+	buf[1] = byte(value >> 24)
+	buf[0] = byte(value >> 16)
+	buf[3] = byte(value >> 8)
+	buf[2] = byte(value)
 	return buf
 }
 
@@ -191,8 +194,69 @@ func Uint32ToBytesLittleEndian(value uint32) []byte {
 	return buf
 }
 
-// Uint16ToBytes 编码
-func Uint16ToBytes(value uint16) []byte {
+func Uint32ToBytesLittleEndianByteSwap(value uint32) []byte {
+	buf := make([]byte, 4)
+	buf[2] = byte(value >> 24)
+	buf[3] = byte(value >> 16)
+	buf[0] = byte(value >> 8)
+	buf[1] = byte(value)
+	return buf
+}
+
+func Uint64ToBytesBigEndian(value uint64) []byte {
+	buf := make([]byte, 8)
+	buf[0] = byte(value >> 56)
+	buf[1] = byte(value >> 48)
+	buf[2] = byte(value >> 40)
+	buf[3] = byte(value >> 32)
+	buf[4] = byte(value >> 24)
+	buf[5] = byte(value >> 16)
+	buf[6] = byte(value >> 8)
+	buf[7] = byte(value)
+	return buf
+}
+
+func Uint64ToBytesBigEndianByteSwap(value uint64) []byte {
+	buf := make([]byte, 8)
+	buf[1] = byte(value >> 56)
+	buf[0] = byte(value >> 48)
+	buf[3] = byte(value >> 40)
+	buf[2] = byte(value >> 32)
+	buf[5] = byte(value >> 24)
+	buf[4] = byte(value >> 16)
+	buf[7] = byte(value >> 8)
+	buf[6] = byte(value)
+	return buf
+}
+
+// Uint64ToBytesLittleEndian 编码
+func Uint64ToBytesLittleEndian(value uint64) []byte {
+	buf := make([]byte, 8)
+	buf[7] = byte(value >> 56)
+	buf[6] = byte(value >> 48)
+	buf[5] = byte(value >> 40)
+	buf[4] = byte(value >> 32)
+	buf[3] = byte(value >> 24)
+	buf[2] = byte(value >> 16)
+	buf[1] = byte(value >> 8)
+	buf[0] = byte(value)
+	return buf
+}
+
+func Uint64ToBytesLittleEndianByteSwap(value uint64) []byte {
+	buf := make([]byte, 8)
+	buf[6] = byte(value >> 56)
+	buf[7] = byte(value >> 48)
+	buf[4] = byte(value >> 40)
+	buf[5] = byte(value >> 32)
+	buf[2] = byte(value >> 24)
+	buf[3] = byte(value >> 16)
+	buf[0] = byte(value >> 8)
+	buf[1] = byte(value)
+	return buf
+}
+
+func Uint16ToBytesBigEndian(value uint16) []byte {
 	buf := make([]byte, 2)
 	buf[0] = byte(value >> 8)
 	buf[1] = byte(value)
@@ -207,8 +271,51 @@ func Uint16ToBytesLittleEndian(value uint16) []byte {
 	return buf
 }
 
+func Float32ToBytesBigEndian(value float32) []byte {
+	val := math.Float32bits(value)
+	return Uint32ToBytesBigEndian(val)
+}
+
+func Float32ToBytesBigEndianByteSwap(value float32) []byte {
+	val := math.Float32bits(value)
+	return Uint32ToBytesBigEndianByteSwap(val)
+}
+
+// Float32ToBytesLittleEndian 编码
+func Float32ToBytesLittleEndian(value float32) []byte {
+	val := math.Float32bits(value)
+	return Uint32ToBytesLittleEndian(val)
+}
+
+func Float32ToBytesLittleEndianByteSwap(value float32) []byte {
+	val := math.Float32bits(value)
+	return Uint32ToBytesLittleEndianByteSwap(val)
+}
+
+func Float64ToBytesBigEndian(value float64) []byte {
+	val := math.Float64bits(value)
+	return Uint64ToBytesBigEndian(val)
+}
+
+func Float64ToBytesBigEndianByteSwap(value float64) []byte {
+	val := math.Float64bits(value)
+	return Uint64ToBytesBigEndianByteSwap(val)
+}
+
+// Float64ToBytesLittleEndian 编码
+func Float64ToBytesLittleEndian(value float64) []byte {
+	val := math.Float64bits(value)
+	return Uint64ToBytesLittleEndian(val)
+}
+
+func Float64ToBytesLittleEndianByteSwap(value float64) []byte {
+	val := math.Float64bits(value)
+	return Uint64ToBytesLittleEndianByteSwap(val)
+}
+
 // WriteUint64 编码
-func WriteUint64(buf []byte, value uint64) {
+// ABCD EFGH
+func WriteUint64BigEndian(buf []byte, value uint64) {
 	buf[0] = byte(value >> 56)
 	buf[1] = byte(value >> 48)
 	buf[2] = byte(value >> 40)
@@ -219,7 +326,20 @@ func WriteUint64(buf []byte, value uint64) {
 	buf[7] = byte(value)
 }
 
+// BADC FEHG
+func WriteUint64BigEndianByteSwap(buf []byte, value uint64) {
+	buf[1] = byte(value >> 56)
+	buf[0] = byte(value >> 48)
+	buf[3] = byte(value >> 40)
+	buf[2] = byte(value >> 32)
+	buf[5] = byte(value >> 24)
+	buf[4] = byte(value >> 16)
+	buf[7] = byte(value >> 8)
+	buf[6] = byte(value)
+}
+
 // WriteUint64LittleEndian 编码
+// HGFE DCBA
 func WriteUint64LittleEndian(buf []byte, value uint64) {
 	buf[7] = byte(value >> 56)
 	buf[6] = byte(value >> 48)
@@ -231,15 +351,36 @@ func WriteUint64LittleEndian(buf []byte, value uint64) {
 	buf[0] = byte(value)
 }
 
-// WriteUint32 编码
-func WriteUint32(buf []byte, value uint32) {
+// GHEF CDAB
+func WriteUint64LittleEndianByteSwap(buf []byte, value uint64) {
+	buf[6] = byte(value >> 56)
+	buf[7] = byte(value >> 48)
+	buf[4] = byte(value >> 40)
+	buf[5] = byte(value >> 32)
+	buf[2] = byte(value >> 24)
+	buf[3] = byte(value >> 16)
+	buf[0] = byte(value >> 8)
+	buf[1] = byte(value)
+}
+
+// ABCD
+func WriteUint32BigEndian(buf []byte, value uint32) {
 	buf[0] = byte(value >> 24)
 	buf[1] = byte(value >> 16)
 	buf[2] = byte(value >> 8)
 	buf[3] = byte(value)
 }
 
+// BADC
+func WriteUint32BigEndianByteSwap(buf []byte, value uint32) {
+	buf[1] = byte(value >> 24)
+	buf[0] = byte(value >> 16)
+	buf[3] = byte(value >> 8)
+	buf[2] = byte(value)
+}
+
 // WriteUint32LittleEndian 编码
+// DCBA
 func WriteUint32LittleEndian(buf []byte, value uint32) {
 	buf[3] = byte(value >> 24)
 	buf[2] = byte(value >> 16)
@@ -247,8 +388,16 @@ func WriteUint32LittleEndian(buf []byte, value uint32) {
 	buf[0] = byte(value)
 }
 
+// CDAB
+func WriteUint32LittleEndianByteSwap(buf []byte, value uint32) {
+	buf[2] = byte(value >> 24)
+	buf[3] = byte(value >> 16)
+	buf[0] = byte(value >> 8)
+	buf[1] = byte(value)
+}
+
 // WriteUint24 编码
-func WriteUint24(buf []byte, value uint32) {
+func WriteUint24BigEndian(buf []byte, value uint32) {
 	buf[0] = byte(value >> 16)
 	buf[1] = byte(value >> 8)
 	buf[2] = byte(value)
@@ -262,7 +411,12 @@ func WriteUint24LittleEndian(buf []byte, value uint32) {
 }
 
 // WriteUint16 编码
-func WriteUint16(buf []byte, value uint16) {
+// func WriteUint16(buf []byte, value uint16) {
+// 	buf[0] = byte(value >> 8)
+// 	buf[1] = byte(value)
+// }
+
+func WriteUint16BigEndian(buf []byte, value uint16) {
 	buf[0] = byte(value >> 8)
 	buf[1] = byte(value)
 }
@@ -273,10 +427,15 @@ func WriteUint16LittleEndian(buf []byte, value uint16) {
 	buf[0] = byte(value)
 }
 
-// WriteFloat32 编码
-func WriteFloat32(buf []byte, value float32) {
+// WriteFloat32BigEndian 编码
+func WriteFloat32BigEndian(buf []byte, value float32) {
 	val := math.Float32bits(value)
-	WriteUint32(buf, val)
+	WriteUint32BigEndian(buf, val)
+}
+
+func WriteFloat32BigEndianByteSwap(buf []byte, value float32) {
+	val := math.Float32bits(value)
+	WriteUint32BigEndianByteSwap(buf, val)
 }
 
 // WriteFloat32LittleEndian 编码
@@ -285,16 +444,31 @@ func WriteFloat32LittleEndian(buf []byte, value float32) {
 	WriteUint32LittleEndian(buf, val)
 }
 
-// WriteFloat64 编码
-func WriteFloat64(buf []byte, value float64) {
+func WriteFloat32LittleEndianByteSwap(buf []byte, value float32) {
+	val := math.Float32bits(value)
+	WriteUint32LittleEndianByteSwap(buf, val)
+}
+
+// WriteFloat64BigEndian 编码
+func WriteFloat64BigEndian(buf []byte, value float64) {
 	val := math.Float64bits(value)
-	WriteUint64(buf, val)
+	WriteUint64BigEndian(buf, val)
+}
+
+func WriteFloat64BigEndianByteSwap(buf []byte, value float64) {
+	val := math.Float64bits(value)
+	WriteUint64BigEndianByteSwap(buf, val)
 }
 
 // WriteFloat64LittleEndian 编码
 func WriteFloat64LittleEndian(buf []byte, value float64) {
 	val := math.Float64bits(value)
 	WriteUint64LittleEndian(buf, val)
+}
+
+func WriteFloat64LittleEndianByteSwap(buf []byte, value float64) {
+	val := math.Float64bits(value)
+	WriteUint64LittleEndianByteSwap(buf, val)
 }
 
 // BoolToAscii 编码

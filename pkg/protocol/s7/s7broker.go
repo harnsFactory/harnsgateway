@@ -389,8 +389,8 @@ func newS7DataFrame(key s7runtime.S7StoreArea, variableParse []*VariableParse, i
 	data = append(data, cotpBytes...)
 	s7HeaderBytesSuffix := []byte{0x32, 0x01, 0x00, 0x00, 0x00, 0x01}
 	data = append(data, s7HeaderBytesSuffix...)
-	data = append(data, binutil.Uint16ToBytes(uint16(2+len(items)*12))...)
-	data = append(data, binutil.Uint16ToBytes(uint16(0))...)
+	data = append(data, binutil.Uint16ToBytesBigEndian(uint16(2+len(items)*12))...)
+	data = append(data, binutil.Uint16ToBytesBigEndian(uint16(0))...)
 	data = append(data, uint8(4))
 	data = append(data, uint8(len(items)))
 	for _, item := range items {
@@ -435,8 +435,8 @@ func newS7COMMReadParameterItem(transportSize uint8, length uint16, dbNumber uin
 	}
 	// Transport size 0x01 BIT 0x02 Byte 0x03 CHAR 0x04 WORD 0x05 INT 0x06 DWORD 0x07 DINT 0x08 REAL 0x09 DATE
 	itemBytes = append(itemBytes, transportSize)
-	itemBytes = append(itemBytes, binutil.Uint16ToBytes(length)...)
-	itemBytes = append(itemBytes, binutil.Uint16ToBytes(dbNumber)...)
+	itemBytes = append(itemBytes, binutil.Uint16ToBytesBigEndian(length)...)
+	itemBytes = append(itemBytes, binutil.Uint16ToBytesBigEndian(dbNumber)...)
 	// Area 0x81 I   0x82 Q  0x83 M  0x84 (DB) V  0x85 DI  0x86 L 0x87 V  0x1c C   0x1d T   0x1e IEC计数器   0x1f IEC定时器
 	itemBytes = append(itemBytes, zone)
 	itemBytes = append(itemBytes, uint8((address<<3)/256/256))

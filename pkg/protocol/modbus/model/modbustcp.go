@@ -66,12 +66,12 @@ func (m *ModbusTcp) GenerateReadMessage(slave uint, functionCode uint8, startAdd
 	// 00 02  寄存器数量(word数量)/线圈数量
 	message := make([]byte, 12)
 
-	binutil.WriteUint16(message[2:], 0) // 协议版本
-	binutil.WriteUint16(message[4:], 6) // 剩余长度
+	binutil.WriteUint16BigEndian(message[2:], 0) // 协议版本
+	binutil.WriteUint16BigEndian(message[4:], 6) // 剩余长度
 	message[6] = byte(slave)
 	message[7] = functionCode
-	binutil.WriteUint16(message[8:], uint16(startAddress))
-	binutil.WriteUint16(message[10:], uint16(maxDataSize))
+	binutil.WriteUint16BigEndian(message[8:], uint16(startAddress))
+	binutil.WriteUint16BigEndian(message[10:], uint16(maxDataSize))
 
 	bytesLength := 0
 	switch modbus.FunctionCode(functionCode) {
@@ -101,8 +101,12 @@ func (m *ModbusTcp) GenerateReadMessage(slave uint, functionCode uint8, startAdd
 	return df
 }
 
-func (m *ModbusTcp) ExecuteAction(messenger modbus.Messenger, variables []*modbus.Variable) error {
-
-	// TODO implement me
-	panic("implement me")
-}
+// func (m *ModbusTcp) ExecuteAction(messenger modbus.Messenger, variables []*modbus.Variable) error {
+// 	// actionBytes := make([][]byte, 0, len(variables))
+// 	// for i, variable := range variables {
+// 	// 	actionBytes[i] = make([]byte, 0)
+// 	//
+// 	// }
+// 	// TODO implement me
+// 	panic("implement me")
+// }

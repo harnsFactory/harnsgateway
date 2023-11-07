@@ -18,7 +18,7 @@ func (m *ModbusRtuOverTcp) GenerateReadMessage(slave uint, functionCode uint8, s
 	panic("implement me")
 }
 
-func (m *ModbusRtuOverTcp) ExecuteAction(messenger modbus.Messenger, variables []*modbus.Variable) error {
-	// TODO implement me
-	panic("implement me")
-}
+// func (m *ModbusRtuOverTcp) ExecuteAction(messenger modbus.Messenger, variables []*modbus.Variable) error {
+// 	// TODO implement me
+// 	panic("implement me")
+// }

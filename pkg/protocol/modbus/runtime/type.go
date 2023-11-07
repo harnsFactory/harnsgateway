@@ -11,7 +11,7 @@ type Variable struct {
 	DataType     runtime.DataType `json:"dataType"`               // bool、int16、float32、float64、int32、int64、uint16
 	Name         string           `json:"name"`                   // 变量名称
 	Address      uint             `json:"address"`                // 变量地址
-	Bits         uint8            `json:"bits"`                   // 位
+	Bits         uint8            `json:"bits"`                   // 位 1、2、3、4、5、6、7、8、9、10、11、12、13、14、15、16
 	FunctionCode uint8            `json:"functionCode"`           // 功能码 1、2、3、4
 	Rate         float64          `json:"rate"`                   // 比率
 	Amount       uint             `json:"amount"`                 // 数量
@@ -103,7 +103,7 @@ type ModBusDataFrame struct {
 func (df *ModBusDataFrame) WriteTransactionId() {
 	df.TransactionId++
 	id := df.TransactionId
-	binutil.WriteUint16(df.DataFrame, id)
+	binutil.WriteUint16BigEndian(df.DataFrame, id)
 }
 
 func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {
@@ -191,7 +191,7 @@ func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {
 				case runtime.ABCD:
 					v = int64(binutil.ParseUint64BigEndian(vpData))
 				case runtime.BADC:
-					v = int64(binutil.ParseUint64BigEndianByteData(vpData))
+					v = int64(binutil.ParseUint64BigEndianByteSwap(vpData))
 				case runtime.CDAB:
 					v = int64(binutil.ParseUint64LittleEndianByteSwap(vpData))
 				case runtime.DCBA:
@@ -227,9 +227,9 @@ func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {
 				case runtime.BADC:
 					v = binutil.ParseFloat64BigEndianByteSwap(vpData)
 				case runtime.CDAB:
-					v = binutil.ParseUint32LittleEndianByteSwap(vpData)
+					v = binutil.ParseFloat64LittleEndianByteSwap(vpData)
 				case runtime.DCBA:
-					v = binutil.ParseUint32LittleEndian(vpData)
+					v = binutil.ParseFloat64LittleEndian(vpData)
 				}
 				if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
 					value = (v.(float64)) * vp.Variable.Rate

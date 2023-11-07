@@ -67,10 +67,10 @@ func (m *ModbusRtu) GenerateReadMessage(slave uint, functionCode uint8, startAdd
 	message := make([]byte, 6)
 	message[0] = byte(slave)
 	message[1] = functionCode
-	binutil.WriteUint16(message[2:], uint16(startAddress))
-	binutil.WriteUint16(message[4:], uint16(maxDataSize))
+	binutil.WriteUint16BigEndian(message[2:], uint16(startAddress))
+	binutil.WriteUint16BigEndian(message[4:], uint16(maxDataSize))
 	crc16 := make([]byte, 2)
-	binutil.WriteUint16(crc16, crcutil.CheckCrc16sum(message))
+	binutil.WriteUint16BigEndian(crc16, crcutil.CheckCrc16sum(message))
 	message = append(message, crc16...)
 
 	bytesLength := 0
@@ -101,7 +101,7 @@ func (m *ModbusRtu) GenerateReadMessage(slave uint, functionCode uint8, startAdd
 	return df
 }
 
-func (m *ModbusRtu) ExecuteAction(messenger modbus.Messenger, variables []*modbus.Variable) error {
-	// TODO implement me
-	panic("implement me")
-}
+// func (m *ModbusRtu) ExecuteAction(messenger modbus.Messenger, variables []*modbus.Variable) error {
+// 	// TODO implement me
+// 	panic("implement me")
+// }

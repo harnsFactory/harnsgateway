@@ -26,7 +26,7 @@ func NewGatewayCmd() *cobra.Command {
 	o := options.NewDefaultOptions()
 	cmd := &cobra.Command{
 		Use:                ComponentGateway,
-		Long:               `The harns model manages the property set type, thing type, thing, and agent.`,
+		Long:               `The harns gateway manages the device, collect and control.`,
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// initial flag parse, since we disable cobra's flag parsing
