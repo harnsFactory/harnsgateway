@@ -51,11 +51,15 @@ type Publisher interface {
 type VariablesMap interface {
 	GetVariablesMap() map[string]VariableValue
 }
+type IndexDevice interface {
+	IndexDevice()
+}
 
 type Device interface {
 	Object
 	Publisher
 	VariablesMap
+	// IndexDevice
 	GetDeviceCode() string
 	SetDeviceCode(string)
 	GetDeviceType() string
@@ -72,7 +76,7 @@ type DeviceMeta struct {
 	DeviceCode    string `json:"deviceCode"`
 	DeviceType    string `json:"deviceType"`
 	DeviceModel   string `json:"deviceModel"`
-	CollectStatus bool   `json:"-"`
+	CollectStatus bool   `json:"collectStatus"`
 }
 
 func (d *DeviceMeta) GetVariablesMap() map[string]VariableValue {
@@ -110,10 +114,6 @@ func (d *DeviceMeta) GetDeviceModel() string {
 func (d *DeviceMeta) SetDeviceModel(model string) {
 	d.DeviceModel = model
 }
-
-// func (d *DeviceMeta) GetVariables() map[string]VariableValue {
-// 	return d.Variables
-// }
 
 type ObjectMeta struct {
 	Name    string    `json:"name"`

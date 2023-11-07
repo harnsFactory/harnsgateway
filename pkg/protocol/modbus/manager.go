@@ -48,10 +48,11 @@ func (m *ModbusDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.De
 		Slave:           modbusDevice.Slave,
 		MemoryLayout:    runtime.StringToMemoryLayout[modbusDevice.MemoryLayout],
 		PositionAddress: modbusDevice.PositionAddress,
+		VariablesMap:    map[string]*modbus.Variable{},
 	}
 	if len(modbusDevice.Variables) > 0 {
 		for _, variable := range modbusDevice.Variables {
-			d.Variables = append(d.Variables, &modbus.Variable{
+			v := &modbus.Variable{
 				DataType:     runtime.StringToDataType[variable.DataType],
 				Name:         variable.Name,
 				Address:      *variable.Address,
@@ -60,7 +61,9 @@ func (m *ModbusDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.De
 				Rate:         variable.Rate,
 				Amount:       variable.Amount,
 				DefaultValue: variable.DefaultValue,
-			})
+			}
+			d.Variables = append(d.Variables, v)
+			d.VariablesMap[v.Name] = v
 		}
 	}
 	return d, nil

@@ -116,6 +116,7 @@ func (df *S7DataFrame) ParseVariableValue(data []byte) s7runtime.VariableSlice {
 			}
 		}
 
+		vp.Variable.SetValue(value)
 		vvs = append(vvs, &s7runtime.Variable{
 			DataType:     vp.Variable.DataType,
 			Name:         vp.Variable.Name,

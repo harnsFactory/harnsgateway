@@ -37,18 +37,22 @@ func (v *Variable) SetVariableName(name string) {
 
 type ModBusDevice struct {
 	runtime.DeviceMeta
-	CollectorCycle   uint                             `json:"collectorCycle"`                    // 采集周期
-	VariableInterval uint                             `json:"variableInterval"`                  // 变量间隔
-	Address          *Address                         `json:"address"`                           // IP地址\串口地址
-	Slave            uint                             `json:"slave"`                             // 下位机号
-	MemoryLayout     runtime.MemoryLayout             `json:"memoryLayout"`                      // 内存布局 DCBA CDAB BADC ABCD
-	PositionAddress  uint                             `json:"positionAddress"`                   // 起始地址
-	Variables        []*Variable                      `json:"variables" binding:"required,dive"` // 自定义变量
-	VariablesMap     map[string]runtime.VariableValue `json:"-"`                                 // 自定义变量Map
+	CollectorCycle   uint                 `json:"collectorCycle"`                    // 采集周期
+	VariableInterval uint                 `json:"variableInterval"`                  // 变量间隔
+	Address          *Address             `json:"address"`                           // IP地址\串口地址
+	Slave            uint                 `json:"slave"`                             // 下位机号
+	MemoryLayout     runtime.MemoryLayout `json:"memoryLayout"`                      // 内存布局 DCBA CDAB BADC ABCD
+	PositionAddress  uint                 `json:"positionAddress"`                   // 起始地址
+	Variables        []*Variable          `json:"variables" binding:"required,dive"` // 自定义变量
+	VariablesMap     map[string]*Variable `json:"-"`                                 // 自定义变量Map
 }
 
 func (m *ModBusDevice) GetVariablesMap() map[string]runtime.VariableValue {
-	return m.VariablesMap
+	vm := make(map[string]runtime.VariableValue)
+	for k, variable := range m.VariablesMap {
+		vm[k] = variable
+	}
+	return vm
 }
 
 type Address struct {
@@ -239,6 +243,7 @@ func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {
 			}
 		}
 
+		vp.Variable.SetValue(value)
 		vvs = append(vvs, &Variable{
 			DataType:     vp.Variable.DataType,
 			Name:         vp.Variable.Name,

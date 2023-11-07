@@ -56,6 +56,7 @@ func NewManager(store *generic.Store, mqttClient mqtt.Client, gatewayMeta *gatew
 func (m *Manager) Init() {
 	devices, _ := m.store.LoadResource()
 	for _, objects := range devices {
+		// objects.IndexDevice()
 		obj, _ := runtime.AccessorDevice(objects)
 		m.devices.Store(obj.GetID(), obj)
 		if err := m.readyCollect(obj); err != nil {
@@ -118,9 +119,14 @@ func (m *Manager) DeleteDevice(id string, version string) (runtime.Device, error
 	}
 
 	klog.V(2).InfoS("Deleted device", "deviceId", device.GetID())
-	if err := m.cancelCollect(device); err != nil {
-		klog.V(2).InfoS("Failed to cancel collect data", "deviceId", device.GetID())
-	}
+
+	go func() {
+		if err := m.cancelCollect(device); err != nil {
+			klog.V(2).InfoS("Failed to cancel collect data", "deviceId", device.GetID())
+		}
+	}()
+
+	m.devices.Delete(device.GetID())
 	return device, nil
 }
 
@@ -157,7 +163,7 @@ func (m *Manager) ListDevices(filter *runtime.DeviceFilter, exploded bool) ([]ru
 }
 
 func (m *Manager) DeliverAction(id string, actions []map[string]interface{}) error {
-	device, err := m.GetDeviceById(id, false)
+	device, err := m.GetDeviceById(id, true)
 	if err != nil {
 		return err
 	}
@@ -300,6 +306,7 @@ func (m *Manager) foldDevice(device runtime.Device) runtime.Device {
 			Version: device.GetVersion(),
 			ModTime: device.GetModTime(),
 		},
+		DeviceModel:   device.GetDeviceModel(),
 		DeviceCode:    device.GetDeviceCode(),
 		DeviceType:    device.GetDeviceType(),
 		CollectStatus: device.GetCollectStatus(),

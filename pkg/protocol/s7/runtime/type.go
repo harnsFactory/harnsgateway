@@ -260,15 +260,19 @@ func (v *Variable) shortening(byteAddress string) bool {
 
 type S7Device struct {
 	runtime.DeviceMeta
-	CollectorCycle   uint                             `json:"collectorCycle"`                    // 采集周期
-	VariableInterval uint                             `json:"variableInterval"`                  // 变量间隔
-	Address          *S7Address                       `json:"address"`                           // IP地址
-	Variables        []*Variable                      `json:"variables" binding:"required,dive"` // 自定义变量
-	VariablesMap     map[string]runtime.VariableValue `json:"-"`
+	CollectorCycle   uint                 `json:"collectorCycle"`                    // 采集周期
+	VariableInterval uint                 `json:"variableInterval"`                  // 变量间隔
+	Address          *S7Address           `json:"address"`                           // IP地址
+	Variables        []*Variable          `json:"variables" binding:"required,dive"` // 自定义变量
+	VariablesMap     map[string]*Variable `json:"-"`
 }
 
 func (s *S7Device) GetVariablesMap() map[string]runtime.VariableValue {
-	return s.VariablesMap
+	vm := make(map[string]runtime.VariableValue)
+	for k, variable := range s.VariablesMap {
+		vm[k] = variable
+	}
+	return vm
 }
 
 type S7Address struct {
