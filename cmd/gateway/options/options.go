@@ -17,7 +17,7 @@ import (
 type Options struct {
 	Port           string        `json:"port"`
 	Wait           time.Duration `json:"graceful-timeout"`
-	MqttBrokerUrls []string      `json:"mqtt-device-urls"`
+	MqttBrokerUrls []string      `json:"mqtt-broker-urls"`
 	MqttUsername   string        `json:"mqtt-username"`
 	MqttPassword   string        `json:"mqtt-password"`
 	CertFile       string        `json:"cert-file"`
@@ -55,7 +55,7 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	// refer to node port assignment https://rancher.com/docs/rancher/v2.x/en/installation/requirements/ports/#commonly-used-ports
 	fs.StringVarP(&o.Port, "port", "P", o.Port, "Port exposed")
 	fs.DurationVar(&o.Wait, "graceful-timeout", o.Wait, "The duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
-	fs.StringSliceVarP(&o.MqttBrokerUrls, "mqtt-device-urls", "", o.MqttBrokerUrls, "The MQTT device urls. The format should be scheme://host:port Where \"scheme\" is one of \"tcp\", \"ssl\", or \"ws\"")
+	fs.StringSliceVarP(&o.MqttBrokerUrls, "mqtt-broker-urls", "", o.MqttBrokerUrls, "The MQTT device urls. The format should be scheme://host:port Where \"scheme\" is one of \"tcp\", \"ssl\", or \"ws\"")
 	fs.StringVarP(&o.MqttUsername, "mqtt-username", "u", o.MqttUsername, "The MQTT username")
 	fs.StringVarP(&o.MqttPassword, "mqtt-password", "p", o.MqttPassword, "The MQTT password")
 	fs.StringVarP(&o.CertFile, "cert-file", "", o.CertFile, "The Cert file")
