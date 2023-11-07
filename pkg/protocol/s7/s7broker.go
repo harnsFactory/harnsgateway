@@ -123,7 +123,7 @@ func (df *S7DataFrame) ParseVariableValue(data []byte) s7runtime.VariableSlice {
 			Address:      vp.Variable.Address,
 			Rate:         vp.Variable.Rate,
 			DefaultValue: vp.Variable.DefaultValue,
-			Value:        value,
+			Value:        vp.Variable.Value,
 		})
 	}
 	return vvs

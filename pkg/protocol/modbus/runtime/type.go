@@ -253,7 +253,7 @@ func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {
 			Rate:         vp.Variable.Rate,
 			Amount:       vp.Variable.Amount,
 			DefaultValue: vp.Variable.DefaultValue,
-			Value:        value,
+			Value:        vp.Variable.Value,
 		})
 	}
 	return vvs

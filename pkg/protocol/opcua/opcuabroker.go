@@ -167,7 +167,14 @@ func (broker *OpcUaBroker) message(ctx context.Context, dataFrame *OpuUaDataFram
 	for i, variable := range dataFrame.Variables {
 		if response.Results[i].Status == ua.StatusOK {
 			variable.SetValue(response.Results[i].Value.Value())
-			variables = append(variables, variable)
+			variables = append(variables, &opcuaruntime.Variable{
+				DataType:     variable.DataType,
+				Name:         variable.Name,
+				Address:      variable.Address,
+				Namespace:    variable.Namespace,
+				DefaultValue: variable.DefaultValue,
+				Value:        variable.Value,
+			})
 		}
 	}
 
