@@ -1,0 +1,49 @@
+openapi: 3.0.1
+info:
+  description: "API defining resources and operations for configuring, reading and managing Device."
+  version: "0.0.3"
+  title: "Device Manager API"
+servers:
+  - url: "/api/v1"
+tags:
+  - name: Device
+    description: Managing Device
+paths:
+  /devices/{id}/action:
+    put:
+      tags:
+        - Device
+      summary: Control Device
+      operationId: controlDeviceById
+      parameters:
+        - name: id
+          in: path
+          description: deviceId.
+          required: true
+          schema:
+            maxLength: 32
+            minLength: 32
+            pattern: '[0-9A-F]{32}'
+            type: string
+      requestBody:
+        description: Device action
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                additionalProperties:
+                  type: string
+                  description: variable values.
+                  example:
+                    频率给定: 20
+
+        required: true
+      responses:
+        202:
+          description: The action has been driver
+        400:
+          description: Invalid request.
+        500:
+          description: Internal Server Error.
