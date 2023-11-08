@@ -251,7 +251,7 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 								pds = append(pds, pd)
 							}
 							publishData := runtime.PublishData{Payload: runtime.Payload{Data: []runtime.TimeSeriesData{{
-								Timestamp: time.Now().UTC().Format("2006-02-01T15:04:05.000Z"),
+								Timestamp: time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
 								Values:    pds,
 							}}}}
 
