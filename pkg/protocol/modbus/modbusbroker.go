@@ -279,7 +279,9 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 		bytes = append(bytes, byte(broker.Device.Slave))
 		bytes = append(bytes, dbs...)
 		if broker.NeedCheckCrc16Sum {
-
+			crc16 := make([]byte, 2)
+			binutil.WriteUint16BigEndian(crc16, crcutil.CheckCrc16sum(bytes))
+			bytes = append(bytes, crc16...)
 		}
 		dataFrames = append(dataFrames, bytes)
 	}
@@ -296,7 +298,7 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 	errs := &response.MultiError{}
 	for _, frame := range dataFrames {
 		rp := make([]byte, len(frame))
-		_, err = messenger.AskAtLeast(frame, rp, 9)
+		_, err = messenger.AskAtLeast(frame, rp, 6)
 		if err != nil {
 			errs.Add(modbus.ErrModbusBadConn)
 			continue
@@ -375,7 +377,7 @@ func (broker *ModbusBroker) message(ctx context.Context, dataFrame *modbus.ModBu
 		if broker.NeedCheckTransaction {
 			dataFrame.WriteTransactionId()
 		}
-		_, err := messenger.AskAtLeast(dataFrame.DataFrame, dataFrame.ResponseDataFrame, 9)
+		_, err := messenger.AskAtLeast(dataFrame.DataFrame, dataFrame.ResponseDataFrame, 6)
 		if err != nil {
 			return modbus.ErrModbusBadConn
 		}
