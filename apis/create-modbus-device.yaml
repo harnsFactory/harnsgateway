@@ -164,14 +164,33 @@ components:
                 enum:
                   - string
                   - number
-                example: number
+                  - float32
+                  - float64
+                  - int32
+                  - int64
+                  - uint16
+                example: int32
               address:
                 type: integer
-                description: 变量地址.
+                description: 变量地址.(注意:地址起始寄存器数值为0!)
                 example: 16
-              namespace:
-                type: string
-                description: NameSpace空间
+              bits:
+                type: integer
+                description: 位地址.(注意:地址起始位为0,数据类型为Bool类型时使用)
+                nullable: true
+              functionCode:
+                type: integer
+                description: 功能码
+                example: 3
+              rate:
+                type: number
+                description: 缩放比例
+                example: 1.0
+                nullable: true
+              amount:
+                type: integer
+                description: 数量
+                nullable: true
               defaultValue:
                 type: number
                 description: 默认值
