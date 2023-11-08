@@ -375,7 +375,7 @@ func (broker *ModbusBroker) message(ctx context.Context, dataFrame *modbus.ModBu
 		if broker.NeedCheckTransaction {
 			dataFrame.WriteTransactionId()
 		}
-		_, err := messenger.AskAtLeast(dataFrame.DataFrame, dataFrame.ResponseDataFrame, 4)
+		_, err := messenger.AskAtLeast(dataFrame.DataFrame, dataFrame.ResponseDataFrame, 9)
 		if err != nil {
 			return modbus.ErrModbusBadConn
 		}
