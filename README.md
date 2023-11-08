@@ -10,11 +10,14 @@ It can also be run as a service on the edge IoT platform to as soft gateway.
 * **Collect equipment data from south end**  
   Supported protocol list:
 
-1. ModbusTcp ModbusRtu
+1. ModbusTcp ModbusRtu ModbusRtuOverTcp
 2. S71500
 3. OpcUA
 
 * **Control equipment from north end input**
+  Supported protocol list:
+
+1. ModbusTcp ModbusRtu ModbusRtuOverTcp
 
 * **Edge computing**
 
