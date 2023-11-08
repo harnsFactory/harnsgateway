@@ -3,6 +3,7 @@ package runtime
 import "errors"
 
 var ErrBadConn = errors.New("S7 bad connection\n")
+var ErrCommandFailed = errors.New("Error command s7\n")
 var ErrServerBadResp = errors.New("S7 server bad response\n")
 var ErrTcpClosed = errors.New("S7 closed\n")
 var ErrManyRetry = errors.New("S7 connect retry more than three times\n")

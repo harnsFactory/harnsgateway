@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"harnsgateway/pkg/apis/response"
 	"harnsgateway/pkg/protocol/s7/model"
 	s7runtime "harnsgateway/pkg/protocol/s7/runtime"
 	"harnsgateway/pkg/runtime"
 	"harnsgateway/pkg/utils/binutil"
 	"k8s.io/klog/v2"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -283,8 +285,131 @@ func (broker *S7Broker) Collect(ctx context.Context) {
 }
 
 func (broker *S7Broker) DeliverAction(ctx context.Context, obj map[string]interface{}) error {
-	// TODO implement me
-	panic("implement me")
+	variablesMap := broker.Device.GetVariablesMap()
+	action := make([]*s7runtime.Variable, 0, len(obj))
+
+	for name, value := range obj {
+		vv, _ := variablesMap[name]
+		variableValue := vv.(*s7runtime.Variable)
+
+		v := &s7runtime.Variable{
+			DataType: variableValue.DataType,
+			Name:     variableValue.Name,
+			Address:  variableValue.Address,
+			Rate:     variableValue.Rate,
+		}
+		switch variableValue.DataType {
+		case runtime.BOOL:
+			switch value.(type) {
+			case bool:
+				v.Value = value
+			case string:
+				b, err := strconv.ParseBool(value.(string))
+				if err == nil {
+					v.Value = b
+				} else {
+					return response.ErrBooleanInvalid(name)
+				}
+			default:
+				return response.ErrBooleanInvalid(name)
+			}
+		case runtime.INT16:
+			switch value.(type) {
+			case float64:
+				v.Value = int16(value.(float64))
+			default:
+				return response.ErrInteger16Invalid(name)
+			}
+		case runtime.UINT16:
+			switch value.(type) {
+			case float64:
+				v.Value = uint16(value.(float64))
+			default:
+				return response.ErrInteger16Invalid(name)
+			}
+		case runtime.INT32:
+			switch value.(type) {
+			case float64:
+				v.Value = int32(value.(float64))
+			default:
+				return response.ErrInteger32Invalid(name)
+			}
+		case runtime.INT64:
+			switch value.(type) {
+			case float64:
+				v.Value = int64(value.(float64))
+			default:
+				return response.ErrInteger64Invalid(name)
+			}
+		case runtime.FLOAT32:
+			switch value.(type) {
+			case float64:
+				v.Value = float32(value.(float64))
+			default:
+				return response.ErrFloat32Invalid(name)
+			}
+		case runtime.FLOAT64:
+			switch value.(type) {
+			case float64:
+				v.Value = value.(float64)
+			default:
+				return response.ErrFloat64Invalid(name)
+			}
+		default:
+			klog.V(3).InfoS("Unsupported dataType", "dataType", variableValue.DataType)
+		}
+		action = append(action, v)
+	}
+
+	pibs := broker.generateActionParameterDataItem(action)
+
+	dataFrames := make([][]byte, 0, len(pibs))
+	for _, pib := range pibs {
+		data := []byte{0x03, 0x00, 0x00}
+		maxBytes := 7 + 10 + 2 + 1*12 + len(pib.DataItem) // item = 1
+		data = append(data, uint8(maxBytes))
+		cotpBytes := []byte{0x02, 0xf0, 0x80}
+		data = append(data, cotpBytes...)
+		s7HeaderBytesSuffix := []byte{0x32, 0x01, 0x00, 0x00, 0x00, 0x01}
+		data = append(data, s7HeaderBytesSuffix...)
+		data = append(data, binutil.Uint16ToBytesBigEndian(uint16(2+1*12))...) // item = 1
+		data = append(data, binutil.Uint16ToBytesBigEndian(uint16(len(pib.DataItem)))...)
+		data = append(data, uint8(5))
+		data = append(data, uint8(1))
+		data = append(data, pib.ParameterItem...)
+		data = append(data, pib.DataItem...)
+
+		dataFrames = append(dataFrames, data)
+	}
+
+	messenger, err := broker.Clients.GetMessenger(ctx)
+	if err != nil {
+		klog.V(2).InfoS("Failed to get messenger", "error", err)
+		if messenger, err = broker.Clients.NewMessenger(); err != nil {
+			return err
+		}
+	}
+	defer broker.Clients.ReleaseMessenger(messenger)
+
+	errs := &response.MultiError{}
+	for _, frame := range dataFrames {
+		rp := make([]byte, 22)
+		_, err = messenger.AskAtLeast(frame, rp, 19)
+		if err != nil {
+			errs.Add(s7runtime.ErrBadConn)
+			continue
+		}
+		if rp[21] != 255 {
+			errs.Add(s7runtime.ErrCommandFailed)
+			continue
+		}
+	}
+
+	if errs.Len() > 0 {
+		return errs
+	}
+
+	return nil
 }
 
 func (broker *S7Broker) poll(ctx context.Context) bool {
@@ -382,6 +507,84 @@ func (broker *S7Broker) rollVariable(ctx context.Context, ch chan *s7runtime.Par
 	}
 }
 
+func (broker *S7Broker) generateActionParameterDataItem(action []*s7runtime.Variable) []*s7runtime.ParameterData {
+	pib := make([]*s7runtime.ParameterData, 0, len(action))
+	var transportSize uint8 = 0
+
+	for _, variable := range action {
+		dataByte := make([]byte, 0)
+		switch variable.DataType {
+		case runtime.BOOL:
+			transportSize = 1
+			if variable.Value.(bool) {
+				dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(1))...)
+			} else {
+				dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
+			}
+		case runtime.INT16:
+			var value int16
+			if variable.Rate != 0 && variable.Rate != 1 {
+				value = int16((variable.Value.(float64)) * variable.Rate)
+			} else {
+				value = variable.Value.(int16)
+			}
+			dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(value))...)
+		case runtime.UINT16:
+			var value uint16
+			if variable.Rate != 0 && variable.Rate != 1 {
+				value = uint16((variable.Value.(float64)) * variable.Rate)
+			} else {
+				value = variable.Value.(uint16)
+			}
+			dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(value)...)
+		case runtime.INT32:
+			var value int32
+			if variable.Rate != 0 && variable.Rate != 1 {
+				value = int32((variable.Value.(float64)) * variable.Rate)
+			} else {
+				value = variable.Value.(int32)
+			}
+			dataByte = append(dataByte, binutil.Uint32ToBytesBigEndian(uint32(value))...)
+		case runtime.INT64:
+			var value int64
+			if variable.Rate != 0 && variable.Rate != 1 {
+				value = int64((variable.Value.(float64)) * variable.Rate)
+			} else {
+				value = variable.Value.(int64)
+			}
+			dataByte = append(dataByte, binutil.Uint64ToBytesBigEndian(uint64(value))...)
+		case runtime.FLOAT32:
+			var value float32
+			if variable.Rate != 0 && variable.Rate != 1 {
+				value = float32((variable.Value.(float64)) * variable.Rate)
+			} else {
+				value = variable.Value.(float32)
+			}
+			dataByte = append(dataByte, binutil.Float32ToBytesBigEndian(value)...)
+		case runtime.FLOAT64:
+			var value float64
+			if variable.Rate != 0 && variable.Rate != 1 {
+				value = (variable.Value.(float64)) * variable.Rate
+			} else {
+				value = variable.Value.(float64)
+			}
+			dataByte = append(dataByte, binutil.Float64ToBytesBigEndian(value)...)
+		}
+		zone, blockSize, startAddress, bitAddress := variable.ParseVariableAddress()
+
+		if transportSize == 0 {
+			transportSize = s7runtime.StoreAreaTransportSize[zone]
+		}
+		pBytes := newS7COMMReadParameterItem(transportSize, variable.DataRequestLength(zone), uint16(blockSize), s7runtime.StoreAreaCode[zone], startAddress, bitAddress)
+		dBytes := newS7COMMWriteDataItem(transportSize, variable.DataRequestLength(zone), dataByte)
+		pib = append(pib, &s7runtime.ParameterData{
+			ParameterItem: pBytes,
+			DataItem:      dBytes,
+		})
+	}
+	return pib
+}
+
 func newS7DataFrame(key s7runtime.S7StoreArea, variableParse []*VariableParse, items []*S7Item, dataLength int, pdu uint16) *S7DataFrame {
 	data := []byte{0x03, 0x00, 0x00}
 	maxBytes := 7 + 10 + 2 + len(items)*12
@@ -397,8 +600,9 @@ func newS7DataFrame(key s7runtime.S7StoreArea, variableParse []*VariableParse, i
 	for _, item := range items {
 		data = append(data, item.RequestData...)
 	}
-	// 0xff, // 总字节数
-	//		// cotp
+	//		0x03, 0x00, 0x00
+	//      0xff, // 总字节数
+	//		COTP
 	//		0x02, // parameter length
 	//		0xf0, // 设置通信
 	//		0x80, // TPDU number
@@ -410,7 +614,7 @@ func newS7DataFrame(key s7runtime.S7StoreArea, variableParse []*VariableParse, i
 	//		0x00, 0x0e, // parameter length
 	//		0x00, 0x00, // Data length
 	//		// s7 parameter                              2
-	//		0x04, // read value
+	//		0x04, // read value [04 read value,05 write value]
 	//		0x01, // item count
 	df := &S7DataFrame{
 		Zone:              key,
@@ -443,5 +647,18 @@ func newS7COMMReadParameterItem(transportSize uint8, length uint16, dbNumber uin
 	itemBytes = append(itemBytes, uint8((address<<3)/256/256))
 	itemBytes = append(itemBytes, uint8((address<<3)/256%256))
 	itemBytes = append(itemBytes, uint8((address<<3)%256)+bitAddress)
+	return itemBytes
+}
+
+func newS7COMMWriteDataItem(transportSize uint8, length uint16, data []byte) []byte {
+	itemBytes := []byte{
+		0x00, // 结构标识 Reserved
+		// 0xff,       // Transport size 0x01 BIT 0x02 Byte 0x03 CHAR 0x04 WORD 0x05 INT 0x06 DWORD 0x07 DINT 0x08 REAL 0x09 DATE
+		// 0xff, 0xff, // 数据长度Length
+		// 0xff, 0xff, // 数据Data
+	}
+	itemBytes = append(itemBytes, transportSize)
+	itemBytes = append(itemBytes, binutil.Uint16ToBytesBigEndian(length)...)
+	itemBytes = append(itemBytes, data...)
 	return itemBytes
 }

@@ -333,3 +333,8 @@ type ParseVariableResult struct {
 	VariableSlice VariableSlice
 	Err           []error
 }
+
+type ParameterData struct {
+	ParameterItem []byte
+	DataItem      []byte
+}
