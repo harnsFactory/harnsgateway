@@ -57,7 +57,6 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 		needCheckCrc16Sum = true
 	case modbus.RtuOverTcp:
 		needCheckCrc16Sum = true
-		needCheckTransaction = true
 	}
 
 	VariableCount := 0
@@ -376,7 +375,7 @@ func (broker *ModbusBroker) message(ctx context.Context, dataFrame *modbus.ModBu
 		if broker.NeedCheckTransaction {
 			dataFrame.WriteTransactionId()
 		}
-		_, err := messenger.AskAtLeast(dataFrame.DataFrame, dataFrame.ResponseDataFrame, 9)
+		_, err := messenger.AskAtLeast(dataFrame.DataFrame, dataFrame.ResponseDataFrame, 4)
 		if err != nil {
 			return modbus.ErrModbusBadConn
 		}
@@ -406,7 +405,6 @@ func (broker *ModbusBroker) retry(fun func(messenger modbus.Messenger, dataFrame
 				return err
 			}
 			messenger.Reset(newMessenger)
-			i = i - 1
 		} else {
 			klog.V(2).InfoS("Failed to connect Modbus server", "error", err)
 		}

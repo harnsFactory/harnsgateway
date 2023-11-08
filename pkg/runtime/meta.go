@@ -78,7 +78,7 @@ type DeviceMeta struct {
 	DeviceCode    string                   `json:"deviceCode"`
 	DeviceType    string                   `json:"deviceType"`
 	DeviceModel   string                   `json:"deviceModel"`
-	CollectStatus bool                     `json:"collectStatus"`
+	CollectStatus bool                     `json:"-"`
 	VariablesMap  map[string]VariableValue `json:"-"`
 }
 

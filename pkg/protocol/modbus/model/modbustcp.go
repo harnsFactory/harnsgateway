@@ -100,13 +100,3 @@ func (m *ModbusTcp) GenerateReadMessage(slave uint, functionCode uint8, startAdd
 
 	return df
 }
-
-// func (m *ModbusTcp) ExecuteAction(messenger modbus.Messenger, variables []*modbus.Variable) error {
-// 	// actionBytes := make([][]byte, 0, len(variables))
-// 	// for i, variable := range variables {
-// 	// 	actionBytes[i] = make([]byte, 0)
-// 	//
-// 	// }
-// 	// TODO implement me
-// 	panic("implement me")
-// }
