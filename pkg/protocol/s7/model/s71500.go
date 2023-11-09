@@ -17,7 +17,11 @@ type S71500 struct {
 func (s *S71500) GetS7DevicePDULength(address *s7.S7Address) (uint16, error) {
 	addr := fmt.Sprintf("%s:%d", address.Location, address.Option.Port)
 	tunnel, err := net.Dial("tcp", addr)
-	defer tunnel.Close()
+	defer func() {
+		if tunnel != nil {
+			_ = tunnel.Close()
+		}
+	}()
 	if err != nil {
 		klog.V(2).InfoS("Failed to connect s7 device", "address", addr, "error", err)
 		return 0, err
