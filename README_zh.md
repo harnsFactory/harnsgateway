@@ -17,6 +17,7 @@ HarnsGateway 可以安装在嵌入式设备上作为硬网关采集工业数据,
   支持的协议列表:
 
 1. ModbusTcp ModbusRtu ModbusRtuOverTcp
+2. S71500
 
 * **边缘计算**
 

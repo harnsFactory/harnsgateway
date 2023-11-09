@@ -18,6 +18,7 @@ It can also be run as a service on the edge IoT platform to as soft gateway.
   Supported protocol list:
 
 1. ModbusTcp ModbusRtu ModbusRtuOverTcp
+2. S71500
 
 * **Edge computing**
 
