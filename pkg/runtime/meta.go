@@ -138,7 +138,7 @@ func (meta *ObjectMeta) GetModTime() time.Time        { return meta.ModTime }
 func (meta *ObjectMeta) SetModTime(modTime time.Time) { meta.ModTime = modTime }
 
 type PublishMeta struct {
-	Topic string `json:"topic"`
+	Topic string `json:"topic,omitempty"`
 }
 
 func (pm *PublishMeta) GetTopic() string      { return pm.Topic }

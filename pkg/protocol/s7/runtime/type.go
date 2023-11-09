@@ -134,6 +134,31 @@ func (v *Variable) DataResponseLength(area S7StoreArea) uint16 {
 	}
 }
 
+// 数据类型对应的位个数 s7 write 变量时 item中的length
+func (v *Variable) DataTypeBitLength() uint16 {
+	switch v.DataType {
+	case runtime.BOOL:
+		return uint16(1)
+	case runtime.STRING:
+		// todo
+	case runtime.UINT16:
+		return uint16(16)
+	case runtime.INT16:
+		return uint16(16)
+	case runtime.INT32:
+		return uint16(32)
+	case runtime.FLOAT32:
+		return uint16(32)
+	case runtime.INT64:
+		return uint16(64)
+	case runtime.FLOAT64:
+		return uint16(64)
+	default:
+		return uint16(16)
+	}
+	return uint16(16)
+}
+
 func (v *Variable) Zone() S7StoreArea {
 	if strings.HasPrefix(v.Address, "I") {
 		return I

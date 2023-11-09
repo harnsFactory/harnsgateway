@@ -400,6 +400,7 @@ func (broker *S7Broker) DeliverAction(ctx context.Context, obj map[string]interf
 			continue
 		}
 		if rp[21] != 255 {
+			klog.V(2).InfoS("Failed to control s7", "errorCode", rp[21])
 			errs.Add(s7runtime.ErrCommandFailed)
 			continue
 		}
@@ -576,7 +577,7 @@ func (broker *S7Broker) generateActionParameterDataItem(action []*s7runtime.Vari
 			transportSize = s7runtime.StoreAreaTransportSize[zone]
 		}
 		pBytes := newS7COMMReadParameterItem(transportSize, variable.DataRequestLength(zone), uint16(blockSize), s7runtime.StoreAreaCode[zone], startAddress, bitAddress)
-		dBytes := newS7COMMWriteDataItem(transportSize, variable.DataRequestLength(zone), dataByte)
+		dBytes := newS7COMMWriteDataItem(transportSize, variable.DataTypeBitLength(), dataByte)
 		pib = append(pib, &s7runtime.ParameterData{
 			ParameterItem: pBytes,
 			DataItem:      dBytes,
@@ -651,6 +652,8 @@ func newS7COMMReadParameterItem(transportSize uint8, length uint16, dbNumber uin
 }
 
 func newS7COMMWriteDataItem(transportSize uint8, length uint16, data []byte) []byte {
+	// transportSize = 4
+	length = 32
 	itemBytes := []byte{
 		0x00, // 结构标识 Reserved
 		// 0xff,       // Transport size 0x01 BIT 0x02 Byte 0x03 CHAR 0x04 WORD 0x05 INT 0x06 DWORD 0x07 DINT 0x08 REAL 0x09 DATE

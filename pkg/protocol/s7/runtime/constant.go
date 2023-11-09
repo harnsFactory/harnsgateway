@@ -49,6 +49,7 @@ var StoreAreaTransportSize = map[S7StoreArea]uint8{
 	Q:  2,
 	M:  2,
 	DB: 4,
+	// DB: 6,
 }
 
 const (

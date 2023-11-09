@@ -43,16 +43,19 @@ func (m *S7DeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device
 				Slot: s7Device.Address.Option.Slot,
 			},
 		},
+		VariablesMap: map[string]*s7runtime.Variable{},
 	}
 	if len(s7Device.Variables) > 0 {
 		for _, variable := range s7Device.Variables {
-			d.Variables = append(d.Variables, &s7runtime.Variable{
+			v := &s7runtime.Variable{
 				DataType:     runtime.StringToDataType[variable.DataType],
 				Name:         variable.Name,
 				Address:      variable.Address,
 				Rate:         variable.Rate,
 				DefaultValue: variable.DefaultValue,
-			})
+			}
+			d.Variables = append(d.Variables, v)
+			d.VariablesMap[v.Name] = v
 		}
 	}
 	return d, nil
