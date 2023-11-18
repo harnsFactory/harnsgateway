@@ -3,9 +3,11 @@ package modbus
 import (
 	modbus "harnsgateway/pkg/protocol/modbus/runtime"
 	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 	"harnsgateway/pkg/utils/randutil"
 	"harnsgateway/pkg/utils/uuidutil"
 	v1 "harnsgateway/pkg/v1"
+	"k8s.io/klog/v2"
 	"strconv"
 	"time"
 )
@@ -16,7 +18,8 @@ type ModbusDeviceManager struct {
 func (m *ModbusDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device, error) {
 	modbusDevice, ok := deviceType.(*v1.ModBusDevice)
 	if !ok {
-		return nil, modbus.ErrDeviceType
+		klog.V(2).InfoS("Unsupported device,type not Modbus")
+		return nil, constant.ErrDeviceType
 	}
 
 	d := &modbus.ModBusDevice{
@@ -41,19 +44,19 @@ func (m *ModbusDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.De
 				Port:     modbusDevice.Address.Option.Port,
 				BaudRate: modbusDevice.Address.Option.BaudRate,
 				DataBits: modbusDevice.Address.Option.DataBits,
-				Parity:   runtime.StringToParity[modbusDevice.Address.Option.Parity],
-				StopBits: runtime.StringToStopBits[modbusDevice.Address.Option.StopBits],
+				Parity:   constant.StringToParity[modbusDevice.Address.Option.Parity],
+				StopBits: constant.StringToStopBits[modbusDevice.Address.Option.StopBits],
 			},
 		},
 		Slave:           modbusDevice.Slave,
-		MemoryLayout:    runtime.StringToMemoryLayout[modbusDevice.MemoryLayout],
+		MemoryLayout:    constant.StringToMemoryLayout[modbusDevice.MemoryLayout],
 		PositionAddress: modbusDevice.PositionAddress,
 		VariablesMap:    map[string]*modbus.Variable{},
 	}
 	if len(modbusDevice.Variables) > 0 {
 		for _, variable := range modbusDevice.Variables {
 			v := &modbus.Variable{
-				DataType:     runtime.StringToDataType[variable.DataType],
+				DataType:     constant.StringToDataType[variable.DataType],
 				Name:         variable.Name,
 				Address:      *variable.Address,
 				Bits:         variable.Bits,
@@ -61,6 +64,7 @@ func (m *ModbusDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.De
 				Rate:         variable.Rate,
 				Amount:       variable.Amount,
 				DefaultValue: variable.DefaultValue,
+				AccessMode:   variable.AccessMode,
 			}
 			d.Variables = append(d.Variables, v)
 			d.VariablesMap[v.Name] = v

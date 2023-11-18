@@ -1,13 +1,15 @@
 package randutil
 
 import (
-	"harnsgateway/pkg/runtime"
 	"math/rand"
 	"strings"
 )
 
+// ETagMaxInitialValue just a value, meaningless
+const ETagMaxInitialValue int64 = 3294967296
+
 func Int63n() int64 {
-	return rand.Int63n(runtime.ETagMaxInitialValue)
+	return rand.Int63n(ETagMaxInitialValue)
 }
 
 func Uint64n() uint64 {

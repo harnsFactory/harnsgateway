@@ -3,9 +3,11 @@ package opcua
 import (
 	opcuaruntime "harnsgateway/pkg/protocol/opcua/runtime"
 	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 	"harnsgateway/pkg/utils/randutil"
 	"harnsgateway/pkg/utils/uuidutil"
 	v1 "harnsgateway/pkg/v1"
+	"k8s.io/klog/v2"
 	"strconv"
 	"time"
 )
@@ -16,7 +18,8 @@ type OpcUaDeviceManager struct {
 func (m *OpcUaDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device, error) {
 	opcUaDevice, ok := deviceType.(*v1.OpcUaDevice)
 	if !ok {
-		return nil, opcuaruntime.ErrDeviceType
+		klog.V(2).InfoS("Unsupported device,type not OpcUa")
+		return nil, constant.ErrDeviceType
 	}
 
 	d := &opcuaruntime.OpcUaDevice{
@@ -47,11 +50,12 @@ func (m *OpcUaDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Dev
 	if len(opcUaDevice.Variables) > 0 {
 		for _, variable := range opcUaDevice.Variables {
 			d.Variables = append(d.Variables, &opcuaruntime.Variable{
-				DataType:     runtime.StringToDataType[variable.DataType],
+				DataType:     constant.StringToDataType[variable.DataType],
 				Name:         variable.Name,
 				Address:      variable.Address,
 				Namespace:    variable.NameSpace,
 				DefaultValue: variable.DefaultValue,
+				AccessMode:   variable.AccessMode,
 			})
 		}
 	}

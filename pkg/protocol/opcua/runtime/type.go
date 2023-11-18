@@ -2,17 +2,19 @@ package runtime
 
 import (
 	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 )
 
 var _ runtime.Device = (*OpcUaDevice)(nil)
 
 type Variable struct {
-	DataType     runtime.DataType `json:"dataType"`               // bool、int16、float32、float64、int32、int64、uint16
-	Name         string           `json:"name"`                   // 变量名称
-	Address      interface{}      `json:"address"`                // 变量地址
-	Namespace    uint16           `json:"Namespace"`              // namespace
-	DefaultValue interface{}      `json:"defaultValue,omitempty"` // 默认值
-	Value        interface{}      `json:"value,omitempty"`        // 值
+	DataType     constant.DataType   `json:"dataType"`               // bool、int16、float32、float64、int32、int64、uint16
+	Name         string              `json:"name"`                   // 变量名称
+	Address      interface{}         `json:"address"`                // 变量地址
+	Namespace    uint16              `json:"Namespace"`              // namespace
+	DefaultValue interface{}         `json:"defaultValue,omitempty"` // 默认值
+	Value        interface{}         `json:"value,omitempty"`        // 值
+	AccessMode   constant.AccessMode `json:"accessMode"`             // 读写属性
 }
 
 func (v *Variable) SetValue(value interface{}) {

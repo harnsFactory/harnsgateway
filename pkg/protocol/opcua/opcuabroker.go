@@ -8,6 +8,7 @@ import (
 	"harnsgateway/pkg/protocol/opcua/model"
 	opcuaruntime "harnsgateway/pkg/protocol/opcua/runtime"
 	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 	"io"
 	"k8s.io/klog/v2"
 	"sync"
@@ -35,8 +36,8 @@ type OpcUaBroker struct {
 func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableResult, error) {
 	device, ok := d.(*opcuaruntime.OpcUaDevice)
 	if !ok {
-		klog.V(2).InfoS("Failed to new opc ua device,device type not supported")
-		return nil, nil, opcuaruntime.ErrDeviceType
+		klog.V(2).InfoS("Unsupported device,type not OpcUa")
+		return nil, nil, constant.ErrDeviceType
 	}
 
 	var CanCollect bool
@@ -47,11 +48,11 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 		requestVariables := make([]*ua.ReadValueID, 0, 0)
 		for _, variable := range variables {
 			switch variable.DataType {
-			case runtime.NUMBER:
+			case constant.NUMBER:
 				address := variable.Address.(float64)
 				id := ua.NewNumericNodeID(variable.Namespace, uint32(address))
 				requestVariables = append(requestVariables, &ua.ReadValueID{NodeID: id})
-			case runtime.STRING:
+			case constant.STRING:
 				address := variable.Address.(string)
 				id := ua.NewStringNodeID(variable.Namespace, address)
 				requestVariables = append(requestVariables, &ua.ReadValueID{NodeID: id})

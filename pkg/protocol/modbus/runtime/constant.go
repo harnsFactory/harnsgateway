@@ -3,7 +3,7 @@ package runtime
 import (
 	"errors"
 	"go.bug.st/serial"
-	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 )
 
 var ErrModbusBadConn = errors.New("Bad Modbus connection\n")
@@ -14,7 +14,6 @@ var ErrMessageSlave = errors.New("Modbus message slave not match\n")
 var ErrMessageDataLengthNotEnough = errors.New("Modbus message data length not enough\n")
 var ErrMessageFunctionCodeError = errors.New("Modbus message function code error\n")
 var ErrManyRetry = errors.New("Connect Modbus server retry more than three times\n")
-var ErrDeviceType = errors.New("Error device type\n")
 var ErrCRC16Error = errors.New("Validate crc16 error\n")
 
 type ModbusModel byte
@@ -64,14 +63,14 @@ const (
 	PerRequestMaxRegister = 123
 )
 
-var StopBitsToStopBits = map[runtime.StopBits]serial.StopBits{
-	runtime.OneStopBit:           serial.OneStopBit,
-	runtime.OnePointFiveStopBits: serial.OnePointFiveStopBits,
-	runtime.TwoStopBits:          serial.TwoStopBits,
+var StopBitsToStopBits = map[constant.StopBits]serial.StopBits{
+	constant.OneStopBit:           serial.OneStopBit,
+	constant.OnePointFiveStopBits: serial.OnePointFiveStopBits,
+	constant.TwoStopBits:          serial.TwoStopBits,
 }
 
-var ParityToParity = map[runtime.Parity]serial.Parity{
-	runtime.NoParity:   serial.NoParity,
-	runtime.OddParity:  serial.OddParity,
-	runtime.EvenParity: serial.EvenParity,
+var ParityToParity = map[constant.Parity]serial.Parity{
+	constant.NoParity:   serial.NoParity,
+	constant.OddParity:  serial.OddParity,
+	constant.EvenParity: serial.EvenParity,
 }

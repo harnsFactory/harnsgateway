@@ -2,7 +2,7 @@ package model
 
 import (
 	modbus "harnsgateway/pkg/protocol/modbus/runtime"
-	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 )
 
 var _ ModbusModeler = (*ModbusTcp)(nil)
@@ -16,7 +16,7 @@ var ModbusModelers = map[string]ModbusModeler{
 }
 
 type ModbusModeler interface {
-	GenerateReadMessage(slave uint, functionCode uint8, startAddress uint, maxDataSize uint, variables []*modbus.VariableParse, memoryLayout runtime.MemoryLayout) *modbus.ModBusDataFrame
+	GenerateReadMessage(slave uint, functionCode uint8, startAddress uint, maxDataSize uint, variables []*modbus.VariableParse, memoryLayout constant.MemoryLayout) *modbus.ModBusDataFrame
 	NewClients(address *modbus.Address, dataFrameCount int) (*modbus.Clients, error)
 	// ExecuteAction(messenger modbus.Messenger, variables []*modbus.Variable) error
 }

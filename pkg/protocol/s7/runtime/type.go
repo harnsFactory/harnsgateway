@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 	"k8s.io/klog/v2"
 	"strconv"
 	"strings"
@@ -10,12 +11,13 @@ import (
 var _ runtime.Device = (*S7Device)(nil)
 
 type Variable struct {
-	DataType     runtime.DataType `json:"dataType"`               // bool、int16、float32、float64、int32、int64、uint16
-	Name         string           `json:"name"`                   // 变量名称
-	Address      string           `json:"address"`                // 变量地址
-	Rate         float64          `json:"rate,omitempty"`         // 比率
-	DefaultValue interface{}      `json:"defaultValue,omitempty"` // 默认值
-	Value        interface{}      `json:"value,omitempty"`        // 值
+	DataType     constant.DataType   `json:"dataType"`               // bool、int16、float32、float64、int32、int64、uint16
+	Name         string              `json:"name"`                   // 变量名称
+	Address      string              `json:"address"`                // 变量地址
+	Rate         float64             `json:"rate,omitempty"`         // 比率
+	DefaultValue interface{}         `json:"defaultValue,omitempty"` // 默认值
+	Value        interface{}         `json:"value,omitempty"`        // 值
+	AccessMode   constant.AccessMode `json:"accessMode"`             // 读写属性
 }
 
 func (v *Variable) SetValue(value interface{}) {
@@ -39,21 +41,21 @@ func (v *Variable) DataRequestLength(area S7StoreArea) uint16 {
 	// 以byte形式读取 发送的一个item占12个字节    返回的一个item至少占5个字节
 	case I, Q, M:
 		switch v.DataType {
-		case runtime.BOOL:
+		case constant.BOOL:
 			return uint16(1)
-		case runtime.STRING:
+		case constant.STRING:
 			return uint16(1)
-		case runtime.UINT16:
+		case constant.UINT16:
 			return uint16(2)
-		case runtime.INT16:
+		case constant.INT16:
 			return uint16(2)
-		case runtime.INT32:
+		case constant.INT32:
 			return uint16(4)
-		case runtime.FLOAT32:
+		case constant.FLOAT32:
 			return uint16(4)
-		case runtime.INT64:
+		case constant.INT64:
 			return uint16(8)
-		case runtime.FLOAT64:
+		case constant.FLOAT64:
 			return uint16(8)
 		default:
 			return uint16(1)
@@ -61,21 +63,21 @@ func (v *Variable) DataRequestLength(area S7StoreArea) uint16 {
 	// 以word形式读取 发送的一个item占12个字节    返回的一个item至少占8个字节
 	case DB:
 		switch v.DataType {
-		case runtime.BOOL:
+		case constant.BOOL:
 			return uint16(1)
-		case runtime.STRING:
+		case constant.STRING:
 			return uint16(1)
-		case runtime.UINT16:
+		case constant.UINT16:
 			return uint16(1)
-		case runtime.INT16:
+		case constant.INT16:
 			return uint16(1)
-		case runtime.INT32:
+		case constant.INT32:
 			return uint16(2)
-		case runtime.FLOAT32:
+		case constant.FLOAT32:
 			return uint16(2)
-		case runtime.INT64:
+		case constant.INT64:
 			return uint16(4)
-		case runtime.FLOAT64:
+		case constant.FLOAT64:
 			return uint16(4)
 		default:
 			return uint16(1)
@@ -89,42 +91,42 @@ func (v *Variable) DataResponseLength(area S7StoreArea) uint16 {
 	switch area {
 	case I, Q, M:
 		switch v.DataType {
-		case runtime.BOOL:
+		case constant.BOOL:
 			return uint16(1)
-		case runtime.STRING:
+		case constant.STRING:
 			return uint16(1)
-		case runtime.UINT16:
+		case constant.UINT16:
 			return uint16(2)
-		case runtime.INT16:
+		case constant.INT16:
 			return uint16(2)
-		case runtime.INT32:
+		case constant.INT32:
 			return uint16(4)
-		case runtime.FLOAT32:
+		case constant.FLOAT32:
 			return uint16(4)
-		case runtime.INT64:
+		case constant.INT64:
 			return uint16(8)
-		case runtime.FLOAT64:
+		case constant.FLOAT64:
 			return uint16(8)
 		default:
 			return uint16(1)
 		}
 	case DB:
 		switch v.DataType {
-		case runtime.BOOL:
+		case constant.BOOL:
 			return uint16(2)
-		case runtime.STRING:
+		case constant.STRING:
 			return uint16(2)
-		case runtime.UINT16:
+		case constant.UINT16:
 			return uint16(2)
-		case runtime.INT16:
+		case constant.INT16:
 			return uint16(2)
-		case runtime.INT32:
+		case constant.INT32:
 			return uint16(4)
-		case runtime.FLOAT32:
+		case constant.FLOAT32:
 			return uint16(4)
-		case runtime.INT64:
+		case constant.INT64:
 			return uint16(8)
-		case runtime.FLOAT64:
+		case constant.FLOAT64:
 			return uint16(8)
 		default:
 			return uint16(2)
@@ -137,21 +139,21 @@ func (v *Variable) DataResponseLength(area S7StoreArea) uint16 {
 // 数据类型对应的位个数 s7 write 变量时 item中的length
 func (v *Variable) DataTypeBitLength() uint16 {
 	switch v.DataType {
-	case runtime.BOOL:
+	case constant.BOOL:
 		return uint16(1)
-	case runtime.STRING:
+	case constant.STRING:
 		// todo
-	case runtime.UINT16:
+	case constant.UINT16:
 		return uint16(16)
-	case runtime.INT16:
+	case constant.INT16:
 		return uint16(16)
-	case runtime.INT32:
+	case constant.INT32:
 		return uint16(32)
-	case runtime.FLOAT32:
+	case constant.FLOAT32:
 		return uint16(32)
-	case runtime.INT64:
+	case constant.INT64:
 		return uint16(64)
-	case runtime.FLOAT64:
+	case constant.FLOAT64:
 		return uint16(64)
 	default:
 		return uint16(16)

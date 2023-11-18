@@ -4,7 +4,7 @@ import (
 	"container/list"
 	"fmt"
 	modbus "harnsgateway/pkg/protocol/modbus/runtime"
-	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 	"harnsgateway/pkg/utils/binutil"
 	"k8s.io/klog/v2"
 	"net"
@@ -55,7 +55,7 @@ func (m *ModbusTcp) NewClients(address *modbus.Address, dataFrameCount int) (*mo
 	return clients, nil
 }
 
-func (m *ModbusTcp) GenerateReadMessage(slave uint, functionCode uint8, startAddress uint, maxDataSize uint, variables []*modbus.VariableParse, memoryLayout runtime.MemoryLayout) *modbus.ModBusDataFrame {
+func (m *ModbusTcp) GenerateReadMessage(slave uint, functionCode uint8, startAddress uint, maxDataSize uint, variables []*modbus.VariableParse, memoryLayout constant.MemoryLayout) *modbus.ModBusDataFrame {
 	// 00 01 00 00 00 06 18 03 00 02 00 02
 	// 00 01  此次通信事务处理标识符，一般每次通信之后将被要求加1以区别不同的通信数据报文
 	// 00 00  表示协议标识符，00 00为modbus协议

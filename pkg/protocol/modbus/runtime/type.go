@@ -2,21 +2,23 @@ package runtime
 
 import (
 	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 	"harnsgateway/pkg/utils/binutil"
 )
 
 var _ runtime.Device = (*ModBusDevice)(nil)
 
 type Variable struct {
-	DataType     runtime.DataType `json:"dataType"`               // bool、int16、float32、float64、int32、int64、uint16
-	Name         string           `json:"name"`                   // 变量名称
-	Address      uint             `json:"address"`                // 变量地址
-	Bits         uint8            `json:"bits"`                   // 位 1、2、3、4、5、6、7、8、9、10、11、12、13、14、15、16
-	FunctionCode uint8            `json:"functionCode"`           // 功能码 1、2、3、4
-	Rate         float64          `json:"rate"`                   // 比率
-	Amount       uint             `json:"amount"`                 // 数量
-	DefaultValue interface{}      `json:"defaultValue,omitempty"` // 默认值
-	Value        interface{}      `json:"value,omitempty"`        // 值
+	DataType     constant.DataType   `json:"dataType"`               // bool、int16、float32、float64、int32、int64、uint16
+	Name         string              `json:"name"`                   // 变量名称
+	Address      uint                `json:"address"`                // 变量地址
+	Bits         uint8               `json:"bits"`                   // 位 1、2、3、4、5、6、7、8、9、10、11、12、13、14、15、16
+	FunctionCode uint8               `json:"functionCode"`           // 功能码 1、2、3、4
+	Rate         float64             `json:"rate"`                   // 比率
+	Amount       uint                `json:"amount"`                 // 数量
+	DefaultValue interface{}         `json:"defaultValue,omitempty"` // 默认值
+	Value        interface{}         `json:"value,omitempty"`        // 值
+	AccessMode   constant.AccessMode `json:"accessMode"`             // 读写属性
 }
 
 func (v *Variable) SetValue(value interface{}) {
@@ -37,14 +39,14 @@ func (v *Variable) SetVariableName(name string) {
 
 type ModBusDevice struct {
 	runtime.DeviceMeta
-	CollectorCycle   uint                 `json:"collectorCycle"`                    // 采集周期
-	VariableInterval uint                 `json:"variableInterval"`                  // 变量间隔
-	Address          *Address             `json:"address"`                           // IP地址\串口地址
-	Slave            uint                 `json:"slave"`                             // 下位机号
-	MemoryLayout     runtime.MemoryLayout `json:"memoryLayout"`                      // 内存布局 DCBA CDAB BADC ABCD
-	PositionAddress  uint                 `json:"positionAddress"`                   // 起始地址
-	Variables        []*Variable          `json:"variables" binding:"required,dive"` // 自定义变量
-	VariablesMap     map[string]*Variable `json:"-"`                                 // 自定义变量Map
+	CollectorCycle   uint                  `json:"collectorCycle"`                    // 采集周期
+	VariableInterval uint                  `json:"variableInterval"`                  // 变量间隔
+	Address          *Address              `json:"address"`                           // IP地址\串口地址
+	Slave            uint                  `json:"slave"`                             // 下位机号
+	MemoryLayout     constant.MemoryLayout `json:"memoryLayout"`                      // 内存布局 DCBA CDAB BADC ABCD
+	PositionAddress  uint                  `json:"positionAddress"`                   // 起始地址
+	Variables        []*Variable           `json:"variables" binding:"required,dive"` // 自定义变量
+	VariablesMap     map[string]*Variable  `json:"-"`                                 // 自定义变量Map
 }
 
 func (m *ModBusDevice) IndexDevice() {
@@ -68,11 +70,11 @@ type Address struct {
 }
 
 type Option struct {
-	Port     int              `json:"port,omitempty"`     // 端口号
-	BaudRate int              `json:"baudRate,omitempty"` // 波特率
-	DataBits int              `json:"dataBits,omitempty"` // 数据位
-	Parity   runtime.Parity   `json:"parity,omitempty"`   // 校验位
-	StopBits runtime.StopBits `json:"stopBits,omitempty"` // 停止位
+	Port     int               `json:"port,omitempty"`     // 端口号
+	BaudRate int               `json:"baudRate,omitempty"` // 波特率
+	DataBits int               `json:"dataBits,omitempty"` // 数据位
+	Parity   constant.Parity   `json:"parity,omitempty"`   // 校验位
+	StopBits constant.StopBits `json:"stopBits,omitempty"` // 停止位
 }
 
 type VariableSlice []*Variable
@@ -101,7 +103,7 @@ type VariableParse struct {
 
 type ModBusDataFrame struct {
 	Slave             uint
-	MemoryLayout      runtime.MemoryLayout
+	MemoryLayout      constant.MemoryLayout
 	StartAddress      uint
 	FunctionCode      uint8
 	MaxDataSize       uint // 最大数量01 代表线圈  03代表word
@@ -124,40 +126,40 @@ func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {
 		switch FunctionCode(df.FunctionCode) {
 		case ReadInputStatus, ReadCoilStatus:
 			switch vp.Variable.DataType {
-			case runtime.BOOL:
+			case constant.BOOL:
 				v := int(data[vp.Start])
 				value = v == 1
-			case runtime.INT16:
+			case constant.INT16:
 				value = int16(data[vp.Start])
-			case runtime.UINT16:
+			case constant.UINT16:
 				value = uint16(data[vp.Start])
-			case runtime.INT32:
+			case constant.INT32:
 				value = int32(data[vp.Start])
-			case runtime.INT64:
+			case constant.INT64:
 				value = int64(data[vp.Start])
-			case runtime.FLOAT32:
+			case constant.FLOAT32:
 				value = float32(data[vp.Start])
-			case runtime.FLOAT64:
+			case constant.FLOAT64:
 				value = float64(data[vp.Start])
 			}
 		case ReadInputRegister, ReadHoldRegister:
 			vpData := data[vp.Start:]
 			switch vp.Variable.DataType {
-			case runtime.BOOL:
+			case constant.BOOL:
 				var v int16
 				switch df.MemoryLayout {
-				case runtime.ABCD, runtime.CDAB:
+				case constant.ABCD, constant.CDAB:
 					v = int16(binutil.ParseUint16BigEndian(vpData))
-				case runtime.BADC, runtime.DCBA:
+				case constant.BADC, constant.DCBA:
 					v = int16(binutil.ParseUint16LittleEndian(vpData))
 				}
 				value = 1<<(vp.Variable.Bits-1)&v != 0
-			case runtime.INT16:
+			case constant.INT16:
 				var v interface{}
 				switch df.MemoryLayout {
-				case runtime.ABCD, runtime.CDAB:
+				case constant.ABCD, constant.CDAB:
 					v = int16(binutil.ParseUint16BigEndian(vpData))
-				case runtime.BADC, runtime.DCBA:
+				case constant.BADC, constant.DCBA:
 					v = int16(binutil.ParseUint16LittleEndian(vpData))
 				}
 				if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
@@ -165,12 +167,12 @@ func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {
 				} else {
 					value = v
 				}
-			case runtime.UINT16:
+			case constant.UINT16:
 				var v interface{}
 				switch df.MemoryLayout {
-				case runtime.ABCD, runtime.CDAB:
+				case constant.ABCD, constant.CDAB:
 					v = binutil.ParseUint16BigEndian(vpData)
-				case runtime.BADC, runtime.DCBA:
+				case constant.BADC, constant.DCBA:
 					v = binutil.ParseUint16LittleEndian(vpData)
 				}
 				if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
@@ -178,17 +180,17 @@ func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {
 				} else {
 					value = v
 				}
-			case runtime.INT32:
+			case constant.INT32:
 				var v interface{}
 				switch df.MemoryLayout {
-				case runtime.ABCD:
+				case constant.ABCD:
 					v = int32(binutil.ParseUint32BigEndian(vpData))
-				case runtime.BADC:
+				case constant.BADC:
 					// 大端交换
 					v = int32(binutil.ParseUint32BigEndianByteSwap(vpData))
-				case runtime.CDAB:
+				case constant.CDAB:
 					v = int32(binutil.ParseUint32LittleEndianByteSwap(vpData))
-				case runtime.DCBA:
+				case constant.DCBA:
 					v = int32(binutil.ParseUint32LittleEndian(vpData))
 				}
 				if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
@@ -196,16 +198,16 @@ func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {
 				} else {
 					value = v
 				}
-			case runtime.INT64:
+			case constant.INT64:
 				var v interface{}
 				switch df.MemoryLayout {
-				case runtime.ABCD:
+				case constant.ABCD:
 					v = int64(binutil.ParseUint64BigEndian(vpData))
-				case runtime.BADC:
+				case constant.BADC:
 					v = int64(binutil.ParseUint64BigEndianByteSwap(vpData))
-				case runtime.CDAB:
+				case constant.CDAB:
 					v = int64(binutil.ParseUint64LittleEndianByteSwap(vpData))
-				case runtime.DCBA:
+				case constant.DCBA:
 					v = int64(binutil.ParseUint64LittleEndian(vpData))
 				}
 				if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
@@ -213,16 +215,16 @@ func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {
 				} else {
 					value = v
 				}
-			case runtime.FLOAT32:
+			case constant.FLOAT32:
 				var v interface{}
 				switch df.MemoryLayout {
-				case runtime.ABCD:
+				case constant.ABCD:
 					v = binutil.ParseFloat32BigEndian(vpData)
-				case runtime.BADC:
+				case constant.BADC:
 					v = binutil.ParseFloat32BigEndianByteSwap(vpData)
-				case runtime.CDAB:
+				case constant.CDAB:
 					v = binutil.ParseFloat32LittleEndianByteSwap(vpData)
-				case runtime.DCBA:
+				case constant.DCBA:
 					v = binutil.ParseFloat32LittleEndian(vpData)
 				}
 				if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {
@@ -230,16 +232,16 @@ func (df *ModBusDataFrame) ParseVariableValue(data []byte) []*Variable {
 				} else {
 					value = v
 				}
-			case runtime.FLOAT64:
+			case constant.FLOAT64:
 				var v interface{}
 				switch df.MemoryLayout {
-				case runtime.ABCD:
+				case constant.ABCD:
 					v = binutil.ParseFloat64BigEndian(vpData)
-				case runtime.BADC:
+				case constant.BADC:
 					v = binutil.ParseFloat64BigEndianByteSwap(vpData)
-				case runtime.CDAB:
+				case constant.CDAB:
 					v = binutil.ParseFloat64LittleEndianByteSwap(vpData)
-				case runtime.DCBA:
+				case constant.DCBA:
 					v = binutil.ParseFloat64LittleEndian(vpData)
 				}
 				if vp.Variable.Rate != 0 && vp.Variable.Rate != 1 {

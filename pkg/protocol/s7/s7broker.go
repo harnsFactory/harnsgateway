@@ -8,6 +8,7 @@ import (
 	"harnsgateway/pkg/protocol/s7/model"
 	s7runtime "harnsgateway/pkg/protocol/s7/runtime"
 	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 	"harnsgateway/pkg/utils/binutil"
 	"k8s.io/klog/v2"
 	"sort"
@@ -56,13 +57,13 @@ func (df *S7DataFrame) ParseVariableValue(data []byte) s7runtime.VariableSlice {
 	for _, vp := range df.Variables {
 		var value interface{}
 		switch vp.Variable.DataType {
-		case runtime.BOOL:
+		case constant.BOOL:
 			// startAddress 为item start的索引位置
 			v := data[vp.StartAddress+4]
 			value = 1<<(vp.BitAddressOrLength)&v != 0
-		case runtime.STRING:
+		case constant.STRING:
 			// todo
-		case runtime.UINT16:
+		case constant.UINT16:
 			var v interface{}
 			vpData := data[vp.StartAddress+4:]
 			v = binutil.ParseUint16BigEndian(vpData)
@@ -71,7 +72,7 @@ func (df *S7DataFrame) ParseVariableValue(data []byte) s7runtime.VariableSlice {
 			} else {
 				value = v
 			}
-		case runtime.INT16:
+		case constant.INT16:
 			var v interface{}
 			vpData := data[vp.StartAddress+4:]
 			v = int16(binutil.ParseUint16BigEndian(vpData))
@@ -80,7 +81,7 @@ func (df *S7DataFrame) ParseVariableValue(data []byte) s7runtime.VariableSlice {
 			} else {
 				value = v
 			}
-		case runtime.INT32:
+		case constant.INT32:
 			var v interface{}
 			vpData := data[vp.StartAddress+4:]
 			v = int32(binutil.ParseUint32BigEndian(vpData))
@@ -89,7 +90,7 @@ func (df *S7DataFrame) ParseVariableValue(data []byte) s7runtime.VariableSlice {
 			} else {
 				value = v
 			}
-		case runtime.FLOAT32:
+		case constant.FLOAT32:
 			var v interface{}
 			vpData := data[vp.StartAddress+4:]
 			v = binutil.ParseFloat32BigEndian(vpData)
@@ -98,7 +99,7 @@ func (df *S7DataFrame) ParseVariableValue(data []byte) s7runtime.VariableSlice {
 			} else {
 				value = v
 			}
-		case runtime.INT64:
+		case constant.INT64:
 			var v interface{}
 			vpData := data[vp.StartAddress+4:]
 			v = int64(binutil.ParseUint64BigEndian(vpData))
@@ -107,7 +108,7 @@ func (df *S7DataFrame) ParseVariableValue(data []byte) s7runtime.VariableSlice {
 			} else {
 				value = v
 			}
-		case runtime.FLOAT64:
+		case constant.FLOAT64:
 			var v interface{}
 			vpData := data[vp.StartAddress+4:]
 			v = binutil.ParseFloat64BigEndian(vpData)
@@ -152,8 +153,8 @@ type S7Broker struct {
 func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableResult, error) {
 	device, ok := d.(*s7runtime.S7Device)
 	if !ok {
-		klog.V(2).InfoS("Failed to new s7 device,device type not supported")
-		return nil, nil, s7runtime.ErrDeviceType
+		klog.V(2).InfoS("Unsupported device,type not S7")
+		return nil, nil, constant.ErrDeviceType
 	}
 	maxPduLength, err := model.S7Modelers[device.DeviceModel].GetS7DevicePDULength(device.Address)
 	if err != nil {
@@ -299,7 +300,7 @@ func (broker *S7Broker) DeliverAction(ctx context.Context, obj map[string]interf
 			Rate:     variableValue.Rate,
 		}
 		switch variableValue.DataType {
-		case runtime.BOOL:
+		case constant.BOOL:
 			switch value.(type) {
 			case bool:
 				v.Value = value
@@ -313,42 +314,42 @@ func (broker *S7Broker) DeliverAction(ctx context.Context, obj map[string]interf
 			default:
 				return response.ErrBooleanInvalid(name)
 			}
-		case runtime.INT16:
+		case constant.INT16:
 			switch value.(type) {
 			case float64:
 				v.Value = int16(value.(float64))
 			default:
 				return response.ErrInteger16Invalid(name)
 			}
-		case runtime.UINT16:
+		case constant.UINT16:
 			switch value.(type) {
 			case float64:
 				v.Value = uint16(value.(float64))
 			default:
 				return response.ErrInteger16Invalid(name)
 			}
-		case runtime.INT32:
+		case constant.INT32:
 			switch value.(type) {
 			case float64:
 				v.Value = int32(value.(float64))
 			default:
 				return response.ErrInteger32Invalid(name)
 			}
-		case runtime.INT64:
+		case constant.INT64:
 			switch value.(type) {
 			case float64:
 				v.Value = int64(value.(float64))
 			default:
 				return response.ErrInteger64Invalid(name)
 			}
-		case runtime.FLOAT32:
+		case constant.FLOAT32:
 			switch value.(type) {
 			case float64:
 				v.Value = float32(value.(float64))
 			default:
 				return response.ErrFloat32Invalid(name)
 			}
-		case runtime.FLOAT64:
+		case constant.FLOAT64:
 			switch value.(type) {
 			case float64:
 				v.Value = value.(float64)
@@ -515,14 +516,14 @@ func (broker *S7Broker) generateActionParameterDataItem(action []*s7runtime.Vari
 	for _, variable := range action {
 		dataByte := make([]byte, 0)
 		switch variable.DataType {
-		case runtime.BOOL:
+		case constant.BOOL:
 			transportSize = 1
 			if variable.Value.(bool) {
 				dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(1))...)
 			} else {
 				dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
 			}
-		case runtime.INT16:
+		case constant.INT16:
 			var value int16
 			if variable.Rate != 0 && variable.Rate != 1 {
 				value = int16((variable.Value.(float64)) * variable.Rate)
@@ -530,7 +531,7 @@ func (broker *S7Broker) generateActionParameterDataItem(action []*s7runtime.Vari
 				value = variable.Value.(int16)
 			}
 			dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(value))...)
-		case runtime.UINT16:
+		case constant.UINT16:
 			var value uint16
 			if variable.Rate != 0 && variable.Rate != 1 {
 				value = uint16((variable.Value.(float64)) * variable.Rate)
@@ -538,7 +539,7 @@ func (broker *S7Broker) generateActionParameterDataItem(action []*s7runtime.Vari
 				value = variable.Value.(uint16)
 			}
 			dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(value)...)
-		case runtime.INT32:
+		case constant.INT32:
 			var value int32
 			if variable.Rate != 0 && variable.Rate != 1 {
 				value = int32((variable.Value.(float64)) * variable.Rate)
@@ -546,7 +547,7 @@ func (broker *S7Broker) generateActionParameterDataItem(action []*s7runtime.Vari
 				value = variable.Value.(int32)
 			}
 			dataByte = append(dataByte, binutil.Uint32ToBytesBigEndian(uint32(value))...)
-		case runtime.INT64:
+		case constant.INT64:
 			var value int64
 			if variable.Rate != 0 && variable.Rate != 1 {
 				value = int64((variable.Value.(float64)) * variable.Rate)
@@ -554,7 +555,7 @@ func (broker *S7Broker) generateActionParameterDataItem(action []*s7runtime.Vari
 				value = variable.Value.(int64)
 			}
 			dataByte = append(dataByte, binutil.Uint64ToBytesBigEndian(uint64(value))...)
-		case runtime.FLOAT32:
+		case constant.FLOAT32:
 			var value float32
 			if variable.Rate != 0 && variable.Rate != 1 {
 				value = float32((variable.Value.(float64)) * variable.Rate)
@@ -562,7 +563,7 @@ func (broker *S7Broker) generateActionParameterDataItem(action []*s7runtime.Vari
 				value = variable.Value.(float32)
 			}
 			dataByte = append(dataByte, binutil.Float32ToBytesBigEndian(value)...)
-		case runtime.FLOAT64:
+		case constant.FLOAT64:
 			var value float64
 			if variable.Rate != 0 && variable.Rate != 1 {
 				value = (variable.Value.(float64)) * variable.Rate

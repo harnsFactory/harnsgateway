@@ -3,9 +3,11 @@ package s7
 import (
 	s7runtime "harnsgateway/pkg/protocol/s7/runtime"
 	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 	"harnsgateway/pkg/utils/randutil"
 	"harnsgateway/pkg/utils/uuidutil"
 	v1 "harnsgateway/pkg/v1"
+	"k8s.io/klog/v2"
 	"strconv"
 	"time"
 )
@@ -16,7 +18,8 @@ type S7DeviceManager struct {
 func (m *S7DeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device, error) {
 	s7Device, ok := deviceType.(*v1.S7Device)
 	if !ok {
-		return nil, s7runtime.ErrDeviceType
+		klog.V(2).InfoS("Unsupported device,type not S7")
+		return nil, constant.ErrDeviceType
 	}
 
 	d := &s7runtime.S7Device{
@@ -48,11 +51,12 @@ func (m *S7DeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device
 	if len(s7Device.Variables) > 0 {
 		for _, variable := range s7Device.Variables {
 			v := &s7runtime.Variable{
-				DataType:     runtime.StringToDataType[variable.DataType],
+				DataType:     constant.StringToDataType[variable.DataType],
 				Name:         variable.Name,
 				Address:      variable.Address,
 				Rate:         variable.Rate,
 				DefaultValue: variable.DefaultValue,
+				AccessMode:   variable.AccessMode,
 			}
 			d.Variables = append(d.Variables, v)
 			d.VariablesMap[v.Name] = v

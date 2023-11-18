@@ -92,7 +92,7 @@ func (m *Manager) CreateDevice(object v1.DeviceType) (runtime.Device, error) {
 	m.devices.Store(rd.GetID(), rd)
 	obj, _ := runtime.AccessorDevice(created)
 
-	if err := m.readyCollect(obj); err != nil {
+	if err = m.readyCollect(obj); err != nil {
 		return nil, err
 	}
 	return rd, nil

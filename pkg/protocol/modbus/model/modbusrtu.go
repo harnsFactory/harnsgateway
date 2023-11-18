@@ -4,7 +4,7 @@ import (
 	"container/list"
 	"go.bug.st/serial"
 	modbus "harnsgateway/pkg/protocol/modbus/runtime"
-	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 	"harnsgateway/pkg/utils/binutil"
 	"harnsgateway/pkg/utils/crcutil"
 	"k8s.io/klog/v2"
@@ -57,7 +57,7 @@ func (m *ModbusRtu) NewClients(address *modbus.Address, dataFrameCount int) (*mo
 	return clients, nil
 }
 
-func (m *ModbusRtu) GenerateReadMessage(slave uint, functionCode uint8, startAddress uint, maxDataSize uint, variables []*modbus.VariableParse, memoryLayout runtime.MemoryLayout) *modbus.ModBusDataFrame {
+func (m *ModbusRtu) GenerateReadMessage(slave uint, functionCode uint8, startAddress uint, maxDataSize uint, variables []*modbus.VariableParse, memoryLayout constant.MemoryLayout) *modbus.ModBusDataFrame {
 	// 01 03 00 00 00 0A C5 CD
 	// 01  设备地址
 	// 03  功能码

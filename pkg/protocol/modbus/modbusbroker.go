@@ -7,6 +7,7 @@ import (
 	"harnsgateway/pkg/protocol/modbus/model"
 	modbus "harnsgateway/pkg/protocol/modbus/runtime"
 	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 	"harnsgateway/pkg/utils/binutil"
 	"harnsgateway/pkg/utils/crcutil"
 	"k8s.io/klog/v2"
@@ -44,8 +45,8 @@ type ModbusBroker struct {
 func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableResult, error) {
 	device, ok := d.(*modbus.ModBusDevice)
 	if !ok {
-		klog.V(2).InfoS("Failed to new modbus tcp device,device type not supported")
-		return nil, nil, modbus.ErrDeviceType
+		klog.V(2).InfoS("Unsupported device,type not Modbus")
+		return nil, nil, constant.ErrDeviceType
 	}
 
 	needCheckTransaction := false
@@ -101,13 +102,13 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 			dataFrameDataLength := startAddress + modbus.PerRequestMaxRegister
 			for i := 0; i < len(variables); i++ {
 				variable := variables[i]
-				if variable.Address+runtime.DataTypeWord[variable.DataType] <= dataFrameDataLength {
+				if variable.Address+constant.DataTypeWord[variable.DataType] <= dataFrameDataLength {
 					vp := &modbus.VariableParse{
 						Variable: variable,
 						Start:    (variable.Address - startAddress) * 2,
 					}
 					vps = append(vps, vp)
-					maxDataSize = variable.Address - startAddress + runtime.DataTypeWord[variable.DataType]
+					maxDataSize = variable.Address - startAddress + constant.DataTypeWord[variable.DataType]
 				} else {
 					df := model.ModbusModelers[device.DeviceModel].GenerateReadMessage(device.Slave, code, startAddress, maxDataSize, vps, device.MemoryLayout)
 					dfs = append(dfs, df)
@@ -204,7 +205,7 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 			Amount:       variableValue.Amount,
 		}
 		switch variableValue.DataType {
-		case runtime.BOOL:
+		case constant.BOOL:
 			switch value.(type) {
 			case bool:
 				v.Value = value
@@ -218,42 +219,42 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 			default:
 				return response.ErrBooleanInvalid(name)
 			}
-		case runtime.INT16:
+		case constant.INT16:
 			switch value.(type) {
 			case float64:
 				v.Value = int16(value.(float64))
 			default:
 				return response.ErrInteger16Invalid(name)
 			}
-		case runtime.UINT16:
+		case constant.UINT16:
 			switch value.(type) {
 			case float64:
 				v.Value = uint16(value.(float64))
 			default:
 				return response.ErrInteger16Invalid(name)
 			}
-		case runtime.INT32:
+		case constant.INT32:
 			switch value.(type) {
 			case float64:
 				v.Value = int32(value.(float64))
 			default:
 				return response.ErrInteger32Invalid(name)
 			}
-		case runtime.INT64:
+		case constant.INT64:
 			switch value.(type) {
 			case float64:
 				v.Value = int64(value.(float64))
 			default:
 				return response.ErrInteger64Invalid(name)
 			}
-		case runtime.FLOAT32:
+		case constant.FLOAT32:
 			switch value.(type) {
 			case float64:
 				v.Value = float32(value.(float64))
 			default:
 				return response.ErrFloat32Invalid(name)
 			}
-		case runtime.FLOAT64:
+		case constant.FLOAT64:
 			switch value.(type) {
 			case float64:
 				v.Value = value.(float64)
@@ -492,7 +493,7 @@ func (broker *ModbusBroker) rollVariable(ctx context.Context, ch chan *modbus.Pa
 	}
 }
 
-func (broker *ModbusBroker) generateActionBytes(memoryLayout runtime.MemoryLayout, action []*modbus.Variable) [][]byte {
+func (broker *ModbusBroker) generateActionBytes(memoryLayout constant.MemoryLayout, action []*modbus.Variable) [][]byte {
 	dataBytes := make([][]byte, 0, len(action))
 
 	for _, variable := range action {
@@ -504,49 +505,49 @@ func (broker *ModbusBroker) generateActionBytes(memoryLayout runtime.MemoryLayou
 		case modbus.ReadCoilStatus, modbus.ReadInputStatus:
 			switch variable.DataType {
 			// 65280
-			case runtime.BOOL:
+			case constant.BOOL:
 				fc = byte(modbus.WriteSingleCoil)
 				if variable.Value.(bool) {
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
 				} else {
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
 				}
-			case runtime.INT16:
+			case constant.INT16:
 				fc = byte(modbus.WriteSingleCoil)
 				if variable.Value.(int16) > 0 {
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
 				} else {
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
 				}
-			case runtime.UINT16:
+			case constant.UINT16:
 				fc = byte(modbus.WriteSingleCoil)
 				if variable.Value.(uint16) > 0 {
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
 				} else {
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
 				}
-			case runtime.INT32:
+			case constant.INT32:
 				fc = byte(modbus.WriteSingleCoil)
 				if variable.Value.(int32) > 0 {
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
 				} else {
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
 				}
-			case runtime.INT64:
+			case constant.INT64:
 				fc = byte(modbus.WriteSingleCoil)
 				if variable.Value.(int64) > 0 {
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
 				} else {
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
 				}
-			case runtime.FLOAT32:
+			case constant.FLOAT32:
 				fc = byte(modbus.WriteSingleCoil)
 				if variable.Value.(float32) > 0 {
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
 				} else {
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(0))...)
 				}
-			case runtime.FLOAT64:
+			case constant.FLOAT64:
 				fc = byte(modbus.WriteSingleCoil)
 				if variable.Value.(float64) > 0 {
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(65280))...)
@@ -556,10 +557,10 @@ func (broker *ModbusBroker) generateActionBytes(memoryLayout runtime.MemoryLayou
 			}
 		case modbus.ReadHoldRegister, modbus.ReadInputRegister:
 			switch variable.DataType {
-			case runtime.BOOL:
+			case constant.BOOL:
 				klog.V(2).InfoS("Unsupported bool variable with read hold register", "variableName", variable.Name)
 				// todo 需要先读取数据
-			case runtime.INT16:
+			case constant.INT16:
 				fc = byte(modbus.WriteSingleRegister)
 
 				var value int16
@@ -569,12 +570,12 @@ func (broker *ModbusBroker) generateActionBytes(memoryLayout runtime.MemoryLayou
 					value = variable.Value.(int16)
 				}
 				switch memoryLayout {
-				case runtime.ABCD, runtime.CDAB:
+				case constant.ABCD, constant.CDAB:
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(value))...)
-				case runtime.BADC, runtime.DCBA:
+				case constant.BADC, constant.DCBA:
 					dataByte = append(dataByte, binutil.Uint16ToBytesLittleEndian(uint16(value))...)
 				}
-			case runtime.UINT16:
+			case constant.UINT16:
 				fc = byte(modbus.WriteSingleRegister)
 
 				var value uint16
@@ -584,12 +585,12 @@ func (broker *ModbusBroker) generateActionBytes(memoryLayout runtime.MemoryLayou
 					value = variable.Value.(uint16)
 				}
 				switch memoryLayout {
-				case runtime.ABCD, runtime.CDAB:
+				case constant.ABCD, constant.CDAB:
 					dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(value)...)
-				case runtime.BADC, runtime.DCBA:
+				case constant.BADC, constant.DCBA:
 					dataByte = append(dataByte, binutil.Uint16ToBytesLittleEndian(value)...)
 				}
-			case runtime.INT32:
+			case constant.INT32:
 				fc = byte(modbus.WriteMultipleRegister)
 				registerAmount := 2
 				dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(registerAmount))...)
@@ -602,17 +603,17 @@ func (broker *ModbusBroker) generateActionBytes(memoryLayout runtime.MemoryLayou
 					value = variable.Value.(int32)
 				}
 				switch memoryLayout {
-				case runtime.ABCD:
+				case constant.ABCD:
 					dataByte = append(dataByte, binutil.Uint32ToBytesBigEndian(uint32(value))...)
-				case runtime.BADC:
+				case constant.BADC:
 					// 大端交换
 					dataByte = append(dataByte, binutil.Uint32ToBytesBigEndianByteSwap(uint32(value))...)
-				case runtime.CDAB:
+				case constant.CDAB:
 					dataByte = append(dataByte, binutil.Uint32ToBytesLittleEndianByteSwap(uint32(value))...)
-				case runtime.DCBA:
+				case constant.DCBA:
 					dataByte = append(dataByte, binutil.Uint32ToBytesLittleEndian(uint32(value))...)
 				}
-			case runtime.INT64:
+			case constant.INT64:
 				fc = byte(modbus.WriteMultipleRegister)
 				registerAmount := 4
 				dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(registerAmount))...)
@@ -625,17 +626,17 @@ func (broker *ModbusBroker) generateActionBytes(memoryLayout runtime.MemoryLayou
 					value = variable.Value.(int64)
 				}
 				switch memoryLayout {
-				case runtime.ABCD:
+				case constant.ABCD:
 					dataByte = append(dataByte, binutil.Uint64ToBytesBigEndian(uint64(value))...)
-				case runtime.BADC:
+				case constant.BADC:
 					// 大端交换
 					dataByte = append(dataByte, binutil.Uint64ToBytesBigEndianByteSwap(uint64(value))...)
-				case runtime.CDAB:
+				case constant.CDAB:
 					dataByte = append(dataByte, binutil.Uint64ToBytesLittleEndianByteSwap(uint64(value))...)
-				case runtime.DCBA:
+				case constant.DCBA:
 					dataByte = append(dataByte, binutil.Uint64ToBytesLittleEndian(uint64(value))...)
 				}
-			case runtime.FLOAT32:
+			case constant.FLOAT32:
 				fc = byte(modbus.WriteMultipleRegister)
 				registerAmount := 2
 				dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(registerAmount))...)
@@ -648,17 +649,17 @@ func (broker *ModbusBroker) generateActionBytes(memoryLayout runtime.MemoryLayou
 					value = variable.Value.(float32)
 				}
 				switch memoryLayout {
-				case runtime.ABCD:
+				case constant.ABCD:
 					dataByte = append(dataByte, binutil.Float32ToBytesBigEndian(value)...)
-				case runtime.BADC:
+				case constant.BADC:
 					// 大端交换
 					dataByte = append(dataByte, binutil.Float32ToBytesBigEndianByteSwap(value)...)
-				case runtime.CDAB:
+				case constant.CDAB:
 					dataByte = append(dataByte, binutil.Float32ToBytesLittleEndianByteSwap(value)...)
-				case runtime.DCBA:
+				case constant.DCBA:
 					dataByte = append(dataByte, binutil.Float32ToBytesLittleEndian(value)...)
 				}
-			case runtime.FLOAT64:
+			case constant.FLOAT64:
 				fc = byte(modbus.WriteMultipleRegister)
 				registerAmount := 4
 				dataByte = append(dataByte, binutil.Uint16ToBytesBigEndian(uint16(registerAmount))...)
@@ -671,14 +672,14 @@ func (broker *ModbusBroker) generateActionBytes(memoryLayout runtime.MemoryLayou
 					value = variable.Value.(float64)
 				}
 				switch memoryLayout {
-				case runtime.ABCD:
+				case constant.ABCD:
 					dataByte = append(dataByte, binutil.Float64ToBytesBigEndian(value)...)
-				case runtime.BADC:
+				case constant.BADC:
 					// 大端交换
 					dataByte = append(dataByte, binutil.Float64ToBytesBigEndianByteSwap(value)...)
-				case runtime.CDAB:
+				case constant.CDAB:
 					dataByte = append(dataByte, binutil.Float64ToBytesLittleEndianByteSwap(value)...)
-				case runtime.DCBA:
+				case constant.DCBA:
 					dataByte = append(dataByte, binutil.Float64ToBytesLittleEndian(value)...)
 				}
 			}

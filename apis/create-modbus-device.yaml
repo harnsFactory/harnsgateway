@@ -195,3 +195,10 @@ components:
                 type: number
                 description: 默认值
                 nullable: true
+              accessMode:
+                type: string
+                description: 读写属性
+                enum:
+                  - r
+                  - rw
+                example: rw

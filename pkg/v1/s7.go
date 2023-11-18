@@ -1,11 +1,14 @@
 package v1
 
+import "harnsgateway/pkg/runtime/constant"
+
 type S7Variable struct {
-	DataType     string      `json:"dataType" binding:"required"`                                   // bool、int16、float32、float64、int32、int64、uint16
-	Name         string      `json:"name" binding:"required,min=1,max=64,excludesall=\u002F\u005C"` // 变量名称
-	Address      string      `json:"address" binding:"required"`                                    // 变量地址
-	Rate         float64     `json:"rate,omitempty"`
-	DefaultValue interface{} `json:"defaultValue,omitempty"` // 默认值
+	DataType     string              `json:"dataType" binding:"required"`                                   // bool、int16、float32、float64、int32、int64、uint16
+	Name         string              `json:"name" binding:"required,min=1,max=64,excludesall=\u002F\u005C"` // 变量名称
+	Address      string              `json:"address" binding:"required"`                                    // 变量地址
+	Rate         float64             `json:"rate,omitempty"`
+	DefaultValue interface{}         `json:"defaultValue,omitempty"`        // 默认值
+	AccessMode   constant.AccessMode `json:"accessMode" binding:"required"` // 读写属性
 }
 
 type S7Device struct {

@@ -7,7 +7,7 @@ var ErrCommandFailed = errors.New("Error command s7\n")
 var ErrServerBadResp = errors.New("S7 server bad response\n")
 var ErrTcpClosed = errors.New("S7 closed\n")
 var ErrManyRetry = errors.New("S7 connect retry more than three times\n")
-var ErrDeviceType = errors.New("Error device type\n")
+
 var ErrConnectS7DeviceCotpMessage = errors.New("Error connect s7 passed cotp message\n")
 var ErrConnectS7DeviceS7COMMMessage = errors.New("Error connect s7 passed s7comm message\n")
 var ErrMessageDataLengthNotEnough = errors.New("S7 message data length not enough\n")
