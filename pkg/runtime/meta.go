@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"harnsgateway/pkg/runtime/constant"
 	"time"
 )
 
@@ -29,6 +30,7 @@ type VariableValue interface {
 	GetValue() interface{}
 	GetVariableName() string
 	SetVariableName(name string)
+	GetVariableAccessMode() constant.AccessMode
 }
 
 type Object interface {
@@ -48,8 +50,8 @@ type Publisher interface {
 	GetTopic() string
 }
 
-type VariablesMap interface {
-	GetVariablesMap() map[string]VariableValue
+type GetVariabler interface {
+	GetVariable(key string) (VariableValue, bool)
 }
 type IndexDevice interface {
 	IndexDevice()
@@ -58,7 +60,7 @@ type IndexDevice interface {
 type Device interface {
 	Object
 	Publisher
-	VariablesMap
+	GetVariabler
 	IndexDevice
 	GetDeviceCode() string
 	SetDeviceCode(string)
@@ -85,8 +87,8 @@ type DeviceMeta struct {
 func (d *DeviceMeta) IndexDevice() {
 }
 
-func (d *DeviceMeta) GetVariablesMap() map[string]VariableValue {
-	return d.VariablesMap
+func (d *DeviceMeta) GetVariable(key string) (rv VariableValue, exist bool) {
+	return
 }
 
 func (d *DeviceMeta) GetDeviceCode() string {

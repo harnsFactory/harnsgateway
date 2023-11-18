@@ -158,8 +158,8 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 	}
 	maxPduLength, err := model.S7Modelers[device.DeviceModel].GetS7DevicePDULength(device.Address)
 	if err != nil {
-		klog.V(2).InfoS("Failed to connect s7 device for get pdu length")
-		return nil, nil, err
+		klog.V(2).InfoS("Failed to connect s7 device for request pdu length", "err", err)
+		return nil, nil, constant.ErrConnectDevice
 	}
 	CanCollect := false
 
@@ -233,15 +233,15 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 		dataFrameCount += len(values)
 	}
 	if dataFrameCount == 0 {
-		klog.V(2).InfoS("Failed to collect from s7 server.Because of the variables is empty", "deviceId", device.ID)
+		klog.V(2).InfoS("Unnecessary to collect from s7 device.Because of the variables is empty", "deviceId", device.ID)
 		return nil, nil, nil
 	}
 
 	CanCollect = true
 	clients, err := model.S7Modelers[device.DeviceModel].NewClients(device.Address, dataFrameCount)
 	if err != nil {
-		klog.V(2).InfoS("Failed to collect from S7 server", "error", err, "deviceId", device.ID)
-		return nil, nil, nil
+		klog.V(2).InfoS("Failed to connect S7 device", "error", err, "deviceId", device.ID)
+		return nil, nil, constant.ErrConnectDevice
 	}
 
 	s7c := &S7Broker{
@@ -286,18 +286,18 @@ func (broker *S7Broker) Collect(ctx context.Context) {
 }
 
 func (broker *S7Broker) DeliverAction(ctx context.Context, obj map[string]interface{}) error {
-	variablesMap := broker.Device.GetVariablesMap()
 	action := make([]*s7runtime.Variable, 0, len(obj))
 
 	for name, value := range obj {
-		vv, _ := variablesMap[name]
+		vv, _ := broker.Device.GetVariable(name)
 		variableValue := vv.(*s7runtime.Variable)
 
 		v := &s7runtime.Variable{
-			DataType: variableValue.DataType,
-			Name:     variableValue.Name,
-			Address:  variableValue.Address,
-			Rate:     variableValue.Rate,
+			DataType:   variableValue.DataType,
+			Name:       variableValue.Name,
+			Address:    variableValue.Address,
+			Rate:       variableValue.Rate,
+			AccessMode: variableValue.AccessMode,
 		}
 		switch variableValue.DataType {
 		case constant.BOOL:

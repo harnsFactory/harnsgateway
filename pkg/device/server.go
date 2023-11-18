@@ -145,7 +145,7 @@ func controlDeviceById(mgr *Manager) gin.HandlerFunc {
 		err := mgr.DeliverAction(id, actions)
 
 		if err != nil {
-			c.JSON(http.StatusBadRequest, response.NewMultiError(err))
+			c.JSON(http.StatusBadRequest, err)
 			return
 		}
 

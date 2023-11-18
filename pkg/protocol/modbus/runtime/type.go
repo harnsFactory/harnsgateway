@@ -7,6 +7,7 @@ import (
 )
 
 var _ runtime.Device = (*ModBusDevice)(nil)
+var _ runtime.VariableValue = (*Variable)(nil)
 
 type Variable struct {
 	DataType     constant.DataType   `json:"dataType"`               // bool、int16、float32、float64、int32、int64、uint16
@@ -19,6 +20,10 @@ type Variable struct {
 	DefaultValue interface{}         `json:"defaultValue,omitempty"` // 默认值
 	Value        interface{}         `json:"value,omitempty"`        // 值
 	AccessMode   constant.AccessMode `json:"accessMode"`             // 读写属性
+}
+
+func (v *Variable) GetVariableAccessMode() constant.AccessMode {
+	return v.AccessMode
 }
 
 func (v *Variable) SetValue(value interface{}) {
@@ -56,12 +61,12 @@ func (m *ModBusDevice) IndexDevice() {
 	}
 }
 
-func (m *ModBusDevice) GetVariablesMap() map[string]runtime.VariableValue {
-	vm := make(map[string]runtime.VariableValue)
-	for k, variable := range m.VariablesMap {
-		vm[k] = variable
+func (m *ModBusDevice) GetVariable(key string) (rv runtime.VariableValue, exist bool) {
+	if v, isExist := m.VariablesMap[key]; isExist {
+		rv = v
+		exist = isExist
 	}
-	return vm
+	return
 }
 
 type Address struct {

@@ -15,6 +15,9 @@ const (
 	ErrCodeInteger64Invalid            // 10009
 	ErrCodeFloat32Invalid              // 10008
 	ErrCodeFloat64Invalid              // 10009
+	ErrCodeDeviceNotFound              // 10010
+	ErrCodeVariableNotWritable         // 10011
+	ErrCodeDeviceNotConnect            // 10012
 )
 
 // !!! IMPORTANT PLEASE READ FIRST !!!

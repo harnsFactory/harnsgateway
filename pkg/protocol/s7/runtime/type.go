@@ -9,6 +9,7 @@ import (
 )
 
 var _ runtime.Device = (*S7Device)(nil)
+var _ runtime.VariableValue = (*Variable)(nil)
 
 type Variable struct {
 	DataType     constant.DataType   `json:"dataType"`               // bool、int16、float32、float64、int32、int64、uint16
@@ -18,6 +19,10 @@ type Variable struct {
 	DefaultValue interface{}         `json:"defaultValue,omitempty"` // 默认值
 	Value        interface{}         `json:"value,omitempty"`        // 值
 	AccessMode   constant.AccessMode `json:"accessMode"`             // 读写属性
+}
+
+func (v *Variable) GetVariableAccessMode() constant.AccessMode {
+	return v.AccessMode
 }
 
 func (v *Variable) SetValue(value interface{}) {
@@ -301,12 +306,12 @@ func (s *S7Device) IndexDevice() {
 	}
 }
 
-func (s *S7Device) GetVariablesMap() map[string]runtime.VariableValue {
-	vm := make(map[string]runtime.VariableValue)
-	for k, variable := range s.VariablesMap {
-		vm[k] = variable
+func (s *S7Device) GetVariable(key string) (rv runtime.VariableValue, exist bool) {
+	if v, isExist := s.VariablesMap[key]; isExist {
+		rv = v
+		exist = isExist
 	}
-	return vm
+	return
 }
 
 type S7Address struct {
@@ -315,7 +320,7 @@ type S7Address struct {
 }
 
 type S7AddressOption struct {
-	Port uint  `json:"port"`           // 端口号
+	Port uint  `json:"port,omitempty"` // 端口号
 	Rack uint8 `json:"rack,omitempty"` // 机架号
 	Slot uint8 `json:"slot,omitempty"` // 槽位号
 }

@@ -10,6 +10,7 @@ import (
 	"harnsgateway/pkg/gateway"
 	"harnsgateway/pkg/generic"
 	"harnsgateway/pkg/runtime"
+	"harnsgateway/pkg/runtime/constant"
 	v1 "harnsgateway/pkg/v1"
 	"k8s.io/klog/v2"
 	"os"
@@ -165,24 +166,30 @@ func (m *Manager) ListDevices(filter *runtime.DeviceFilter, exploded bool) ([]ru
 func (m *Manager) DeliverAction(id string, actions []map[string]interface{}) error {
 	device, err := m.GetDeviceById(id, true)
 	if err != nil {
-		return err
+		klog.V(2).InfoS("Failed to find device", "deviceId", id)
+		return response.NewMultiError(response.ErrDeviceNotFound(id))
+	}
+
+	if !device.GetCollectStatus() {
+		klog.V(2).InfoS("Failed to connect device", "deviceId", id)
+		return response.NewMultiError(response.ErrDeviceNotConnect(id))
 	}
 
 	errs := &response.MultiError{}
 	legalActions := make(map[string]interface{}, 0)
-	variablesMap := device.GetVariablesMap()
 	for _, item := range actions {
 		for k, v := range item {
 			if _, exist := legalActions[k]; exist {
 				errs.Add(response.ErrResourceExists(k))
 				continue
 			}
-			if _, ok := variablesMap[k]; !ok {
+			if v, ok := device.GetVariable(k); !ok {
+				errs.Add(response.ErrResourceNotFound(k))
+				continue
+			} else if v.GetVariableAccessMode() != constant.AccessModeReadWrite {
 				errs.Add(response.ErrResourceNotFound(k))
 				continue
 			}
-			// todo define rw r w 类型
-
 			legalActions[k] = v
 		}
 	}
@@ -310,6 +317,6 @@ func (m *Manager) foldDevice(device runtime.Device) runtime.Device {
 		DeviceCode:    device.GetDeviceCode(),
 		DeviceType:    device.GetDeviceType(),
 		CollectStatus: device.GetCollectStatus(),
-		VariablesMap:  device.GetVariablesMap(),
+		// VariablesMap:  device.GetVariablesMap(),
 	}
 }

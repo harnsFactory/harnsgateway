@@ -133,15 +133,15 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 		dataFrameCount += len(values)
 	}
 	if dataFrameCount == 0 {
-		klog.V(2).InfoS("Failed to collect from Modbus server.Because of the variables is empty", "deviceId", device.ID)
+		klog.V(2).InfoS("Unnecessary to collect from Modbus device.Because of the variables is empty", "deviceId", device.ID)
 		return nil, nil, nil
 	}
 
 	CanCollect = true
 	clients, err := model.ModbusModelers[device.DeviceModel].NewClients(device.Address, dataFrameCount)
 	if err != nil {
-		klog.V(2).InfoS("Failed to collect from Modbus server", "error", err, "deviceId", device.ID)
-		return nil, nil, nil
+		klog.V(2).InfoS("Failed to connect Modbus device", "error", err, "deviceId", device.ID)
+		return nil, nil, constant.ErrConnectDevice
 	}
 
 	mtc := &ModbusBroker{
@@ -188,11 +188,10 @@ func (broker *ModbusBroker) Collect(ctx context.Context) {
 }
 
 func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]interface{}) error {
-	variablesMap := broker.Device.GetVariablesMap()
 	action := make([]*modbus.Variable, 0, len(obj))
 
 	for name, value := range obj {
-		vv, _ := variablesMap[name]
+		vv, _ := broker.Device.GetVariable(name)
 		variableValue := vv.(*modbus.Variable)
 
 		v := &modbus.Variable{
@@ -203,6 +202,7 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 			FunctionCode: variableValue.FunctionCode,
 			Rate:         variableValue.Rate,
 			Amount:       variableValue.Amount,
+			AccessMode:   variableValue.AccessMode,
 		}
 		switch variableValue.DataType {
 		case constant.BOOL:

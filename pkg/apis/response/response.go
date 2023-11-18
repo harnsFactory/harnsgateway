@@ -144,6 +144,12 @@ func ErrResourceExists(resource string) *responseError {
 func ErrResourceNotFound(resource string) *responseError {
 	return generateError(ErrCodeResourceNotFound, resource)
 }
+func ErrDeviceNotFound(resource string) *responseError {
+	return generateError(ErrCodeDeviceNotFound, resource)
+}
+func ErrDeviceNotConnect(resource string) *responseError {
+	return generateError(ErrCodeDeviceNotConnect, resource)
+}
 func ErrBooleanInvalid(infos ...string) *responseError {
 	if len(infos) == 1 {
 		infos = append(infos, "")
@@ -169,7 +175,7 @@ func ErrInteger64Invalid(infos ...string) *responseError {
 	if len(infos) == 1 {
 		infos = append(infos, "")
 	}
-	return generateError(ErrCodeInteger32Invalid, convert(infos)...)
+	return generateError(ErrCodeInteger64Invalid, convert(infos)...)
 }
 
 func ErrFloat32Invalid(infos ...string) *responseError {
