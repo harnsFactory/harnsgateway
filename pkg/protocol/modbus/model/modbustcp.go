@@ -23,7 +23,7 @@ func (m *ModbusTcp) NewClients(address *modbus.Address, dataFrameCount int) (*mo
 	for i := 0; i < tcpChannel; i++ {
 		tunnel, err := net.Dial("tcp", addr)
 		if err != nil {
-			klog.V(2).InfoS("Failed to connect modbus server", "error", err)
+			klog.V(2).InfoS("Failed to connect Modbus server", "error", err)
 			return nil, err
 		}
 		c := &modbus.TcpClient{

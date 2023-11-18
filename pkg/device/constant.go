@@ -14,5 +14,6 @@ var DeviceManagers = map[string]DeviceManager{
 }
 
 const (
-	mqttTimeout = 1 * time.Second
+	mqttTimeout           = 1 * time.Second
+	heartBeatTimeInterval = 15 * time.Second
 )

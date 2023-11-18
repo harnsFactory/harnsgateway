@@ -3,6 +3,7 @@ package device
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"harnsgateway/pkg/apis"
@@ -22,31 +23,33 @@ import (
 type Option func(*Manager)
 
 type Manager struct {
-	gatewayMeta    *gateway.GatewayMeta
-	mqttClient     mqtt.Client
-	mu             *sync.Mutex
-	deviceManager  map[string]DeviceManager
-	devices        *sync.Map
-	store          *generic.Store
-	brokers        map[string]runtime.Broker
-	brokerReturnCh map[string]chan *runtime.ParseVariableResult
-	stopCh         <-chan struct{}
-	restartCh      <-chan string
-	closers        []runtime.LabeledCloser
+	gatewayMeta      *gateway.GatewayMeta
+	mqttClient       mqtt.Client
+	mu               *sync.Mutex
+	deviceManager    map[string]DeviceManager
+	devices          *sync.Map
+	heartBeatDevices *sync.Map
+	store            *generic.Store
+	brokers          map[string]runtime.Broker
+	brokerReturnCh   map[string]chan *runtime.ParseVariableResult
+	stopCh           <-chan struct{}
+	restartCh        <-chan string
+	closers          []runtime.LabeledCloser
 }
 
 func NewManager(store *generic.Store, mqttClient mqtt.Client, gatewayMeta *gateway.GatewayMeta, stop <-chan struct{}, opts ...Option) *Manager {
 	m := &Manager{
-		gatewayMeta:    gatewayMeta,
-		mqttClient:     mqttClient,
-		mu:             &sync.Mutex{},
-		devices:        &sync.Map{},
-		deviceManager:  DeviceManagers,
-		brokers:        make(map[string]runtime.Broker, 0),
-		brokerReturnCh: make(map[string]chan *runtime.ParseVariableResult, 0),
-		store:          store,
-		stopCh:         stop,
-		restartCh:      make(chan string, 0),
+		gatewayMeta:      gatewayMeta,
+		mqttClient:       mqttClient,
+		mu:               &sync.Mutex{},
+		devices:          &sync.Map{},
+		heartBeatDevices: &sync.Map{},
+		deviceManager:    DeviceManagers,
+		brokers:          make(map[string]runtime.Broker, 0),
+		brokerReturnCh:   make(map[string]chan *runtime.ParseVariableResult, 0),
+		store:            store,
+		stopCh:           stop,
+		restartCh:        make(chan string, 0),
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -60,10 +63,17 @@ func (m *Manager) Init() {
 		object.IndexDevice()
 		obj, _ := runtime.AccessorDevice(object)
 		m.devices.Store(obj.GetID(), obj)
-		if err := m.readyCollect(obj); err != nil {
-			klog.V(1).InfoS("Failed to start collect data", "deviceId", obj.GetID())
+
+		err := m.readyCollect(obj)
+		if errors.Is(err, constant.ErrConnectDevice) {
+			// 开启探测协程 15S一次
+			m.heartBeatDevices.Store(obj.GetID(), obj)
+		} else {
+			klog.V(2).InfoS("Failed to start process collect device data", "deviceId", obj.GetID())
 		}
 	}
+
+	go m.heartBeatDetection()
 }
 
 func (m *Manager) GetDeviceById(id string, exploded bool) (runtime.Device, error) {
@@ -93,9 +103,17 @@ func (m *Manager) CreateDevice(object v1.DeviceType) (runtime.Device, error) {
 	m.devices.Store(rd.GetID(), rd)
 	obj, _ := runtime.AccessorDevice(created)
 
-	if err = m.readyCollect(obj); err != nil {
+	err = m.readyCollect(obj)
+	if errors.Is(err, constant.ErrDeviceType) {
+		return nil, err
+	} else if errors.Is(err, constant.ErrConnectDevice) {
+		// 开启探测协程 15S一次
+		m.heartBeatDevices.Store(rd.GetID(), rd)
+	} else {
+		klog.V(2).InfoS("Failed to start process collect device data", "deviceId", obj.GetID())
 		return nil, err
 	}
+
 	return rd, nil
 }
 
@@ -170,11 +188,6 @@ func (m *Manager) DeliverAction(id string, actions []map[string]interface{}) err
 		return response.NewMultiError(response.ErrDeviceNotFound(id))
 	}
 
-	if !device.GetCollectStatus() {
-		klog.V(2).InfoS("Failed to connect device", "deviceId", id)
-		return response.NewMultiError(response.ErrDeviceNotConnect(id))
-	}
-
 	errs := &response.MultiError{}
 	legalActions := make(map[string]interface{}, 0)
 	for _, item := range actions {
@@ -202,6 +215,11 @@ func (m *Manager) DeliverAction(id string, actions []map[string]interface{}) err
 		return response.NewMultiError(response.ErrLegalActionNotFound)
 	}
 
+	if !device.GetCollectStatus() {
+		klog.V(2).InfoS("Failed to connect device", "deviceId", id)
+		return response.NewMultiError(response.ErrDeviceNotConnect(id))
+	}
+
 	return m.brokers[id].DeliverAction(context.Background(), legalActions)
 }
 
@@ -219,12 +237,13 @@ func (m Manager) cancelCollect(obj runtime.Device) error {
 func (m *Manager) readyCollect(obj runtime.Device) error {
 	broker, results, err := generic.DeviceTypeBrokerMap[obj.GetDeviceType()](obj)
 	if err != nil {
-		klog.V(2).InfoS("Failed to create device", "deviceId", obj.GetID())
 		return err
 	}
+
 	if broker == nil {
-		klog.V(2).InfoS("Failed to collect device data", "deviceId", obj.GetID())
-		return err
+		v, _ := m.devices.Load(obj.GetID())
+		v.(runtime.Device).SetCollectStatus(true)
+		return nil
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -317,6 +336,32 @@ func (m *Manager) foldDevice(device runtime.Device) runtime.Device {
 		DeviceCode:    device.GetDeviceCode(),
 		DeviceType:    device.GetDeviceType(),
 		CollectStatus: device.GetCollectStatus(),
-		// VariablesMap:  device.GetVariablesMap(),
+	}
+}
+
+func (m *Manager) heartBeatDetection() {
+	tick := time.Tick(heartBeatTimeInterval)
+	for {
+		select {
+		case _, ok := <-m.stopCh:
+			if !ok {
+				return
+			}
+		case <-tick:
+			resumeDevices := make([]string, 0, 0)
+			m.heartBeatDevices.Range(func(key, value any) bool {
+				d := value.(runtime.Device)
+				if err := m.readyCollect(d); err == nil {
+					resumeDevices = append(resumeDevices, key.(string))
+					return true
+				}
+				return false
+			})
+			if len(resumeDevices) > 0 {
+				for _, deviceId := range resumeDevices {
+					m.heartBeatDevices.Delete(deviceId)
+				}
+			}
+		}
 	}
 }
