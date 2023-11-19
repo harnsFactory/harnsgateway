@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"context"
 	"go.bug.st/serial"
+	"harnsgateway/pkg/runtime/constant"
 	"io"
 	"k8s.io/klog/v2"
 	"net"
@@ -58,7 +59,7 @@ func (t *Clients) GetMessenger(ctx context.Context) (Messenger, error) {
 		return nil, ctx.Err()
 	case m, ok := <-mCh:
 		if !ok {
-			return nil, ErrModbusServerClosed
+			return nil, constant.ErrDeviceServerClosed
 		}
 		return m, nil
 	}

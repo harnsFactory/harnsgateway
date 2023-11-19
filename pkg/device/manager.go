@@ -141,7 +141,7 @@ func (m *Manager) DeleteDevice(id string, version string) (runtime.Device, error
 
 	go func() {
 		if err := m.cancelCollect(device); err != nil {
-			klog.V(2).InfoS("Failed to cancel collect data", "deviceId", device.GetID())
+			klog.V(2).InfoS("Failed to cancel collect process", "deviceId", device.GetID())
 		}
 	}()
 
@@ -253,6 +253,7 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 	topic := obj.GetTopic()
 	if len(topic) == 0 {
 		topic = fmt.Sprintf("data/%s/v1/%s", m.gatewayMeta.ID, obj.GetID())
+		obj.SetTopic(topic)
 	}
 
 	broker.Collect(context.Background())
@@ -319,7 +320,7 @@ func (m *Manager) Shutdown(context context.Context) error {
 		}
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("Failed to shut down server: [%s]\n", strings.Join(errs, ","))
+		return fmt.Errorf("Failed to shutdown server: [%s]\n", strings.Join(errs, ","))
 	}
 	return nil
 }

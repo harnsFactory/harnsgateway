@@ -6,15 +6,14 @@ import (
 	"harnsgateway/pkg/runtime/constant"
 )
 
-var ErrModbusBadConn = errors.New("Bad Modbus connection\n")
-var ErrModbusServerBadResp = errors.New("Modbus server bad response\n")
-var ErrModbusServerClosed = errors.New("Modbus server closed\n")
-var ErrMessageTransaction = errors.New("Modbus message transaction not match\n")
-var ErrMessageSlave = errors.New("Modbus message slave not match\n")
-var ErrMessageDataLengthNotEnough = errors.New("Modbus message data length not enough\n")
-var ErrMessageFunctionCodeError = errors.New("Modbus message function code error\n")
-var ErrManyRetry = errors.New("Connect Modbus server retry more than three times\n")
-var ErrCRC16Error = errors.New("Validate crc16 error\n")
+var ErrModbusBadConn = errors.New("bad Modbus connection")
+var ErrModbusServerBadResp = errors.New("modbus server bad response")
+var ErrMessageTransaction = errors.New("modbus message transaction not match")
+var ErrMessageSlave = errors.New("modbus message slave not match")
+var ErrMessageDataLengthNotEnough = errors.New("modbus message data length not enough")
+var ErrMessageFunctionCodeError = errors.New("modbus message function code error")
+var ErrManyRetry = errors.New("connect Modbus server retry more than three times")
+var ErrCRC16Error = errors.New("validate crc16 error")
 
 type ModbusModel byte
 
@@ -24,11 +23,11 @@ const (
 	RtuOverTcp
 )
 
-//	var ModbusModelToString = map[ModbusModel]string{
-//		Tcp:        "modbusTcp",
-//		Rtu:        "modbusRtu",
-//		RtuOverTcp: "modbusRtuOverTcp",
-//	}
+var ModbusModelToString = map[ModbusModel]string{
+	Tcp:        "modbusTcp",
+	Rtu:        "modbusRtu",
+	RtuOverTcp: "modbusRtuOverTcp",
+}
 var StringToModbusModel = map[string]ModbusModel{
 	"modbusTcp":        Tcp,
 	"modbusRtu":        Rtu,

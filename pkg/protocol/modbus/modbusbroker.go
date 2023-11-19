@@ -289,7 +289,7 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 
 	messenger, err := broker.Clients.GetMessenger(ctx)
 	if err != nil {
-		klog.V(2).InfoS("Failed to get messenger", "error", err)
+		klog.V(2).InfoS("Failed to get Modbus messenger", "error", err)
 		if messenger, err = broker.Clients.NewMessenger(); err != nil {
 			return err
 		}
@@ -308,7 +308,7 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 			transactionId := binutil.ParseUint16(rp[:])
 			requestTransactionId := binutil.ParseUint16(rp[:])
 			if transactionId != requestTransactionId {
-				klog.V(2).InfoS("Failed to match message transaction id", "request transactionId", requestTransactionId, "response transactionId", transactionId)
+				klog.V(2).InfoS("Failed to match Modbus message transaction id", "request transactionId", requestTransactionId, "response transactionId", transactionId)
 				errs.Add(modbus.ErrMessageTransaction)
 				continue
 			}
@@ -317,13 +317,13 @@ func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]in
 
 		slave := rp[0]
 		if uint(slave) != broker.Device.Slave {
-			klog.V(2).InfoS("Failed to match modbus slave", "request slave", broker.Device.Slave, "response slave", slave)
+			klog.V(2).InfoS("Failed to match Modbus slave", "request slave", broker.Device.Slave, "response slave", slave)
 			errs.Add(modbus.ErrMessageSlave)
 			continue
 		}
 		functionCode := rp[1]
 		if functionCode&0x80 > 0 {
-			klog.V(2).InfoS("Failed to parse modbus tcp message", "error code", functionCode-128)
+			klog.V(2).InfoS("Failed to parse Modbus message", "error code", functionCode-128)
 			errs.Add(modbus.ErrMessageFunctionCodeError)
 			continue
 		}

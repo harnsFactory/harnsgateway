@@ -5,6 +5,7 @@ import (
 	"context"
 	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/ua"
+	"harnsgateway/pkg/runtime/constant"
 	"k8s.io/klog/v2"
 	"sync"
 )
@@ -96,7 +97,7 @@ func (cs *Clients) GetMessenger(ctx context.Context) (Messenger, error) {
 		return nil, ctx.Err()
 	case c, ok := <-cCh:
 		if !ok {
-			return nil, ErrTcpClosed
+			return nil, constant.ErrDeviceServerClosed
 		}
 		return c, nil
 	}
