@@ -109,7 +109,7 @@ func (m *Manager) CreateDevice(object v1.DeviceType) (runtime.Device, error) {
 	} else if errors.Is(err, constant.ErrConnectDevice) {
 		// 开启探测协程 15S一次
 		m.heartBeatDevices.Store(rd.GetID(), rd)
-	} else {
+	} else if err != nil {
 		klog.V(2).InfoS("Failed to start process collect device data", "deviceId", obj.GetID())
 		return nil, err
 	}
