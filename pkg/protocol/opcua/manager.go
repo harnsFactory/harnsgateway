@@ -34,7 +34,7 @@ func (m *OpcUaDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Dev
 			DeviceCode:    opcUaDevice.DeviceCode,
 			DeviceType:    opcUaDevice.DeviceType,
 			DeviceModel:   opcUaDevice.DeviceModel,
-			CollectStatus: false,
+			CollectStatus: runtime.CollectStatusToString[runtime.Stopped],
 		},
 		CollectorCycle:   opcUaDevice.CollectorCycle,
 		VariableInterval: opcUaDevice.VariableInterval,

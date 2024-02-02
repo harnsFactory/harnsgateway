@@ -39,7 +39,6 @@ type ModbusBroker struct {
 	FunctionCodeDataFrameMap map[uint8][]*modbus.ModBusDataFrame
 	VariableCount            int
 	VariableCh               chan *runtime.ParseVariableResult
-	CanCollect               bool
 }
 
 func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableResult, error) {
@@ -61,7 +60,6 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 	}
 
 	VariableCount := 0
-	CanCollect := false
 	functionCodeDataFrameMap := make(map[uint8][]*modbus.ModBusDataFrame, 0)
 	functionCodeVariableMap := make(map[uint8][]*modbus.Variable, 0)
 	for _, variable := range device.Variables {
@@ -134,10 +132,9 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 	}
 	if dataFrameCount == 0 {
 		klog.V(2).InfoS("Unnecessary to collect from Modbus device.Because of the variables is empty", "deviceId", device.ID)
-		return nil, nil, nil
+		return nil, nil, constant.ErrDeviceEmptyVariable
 	}
 
-	CanCollect = true
 	clients, err := model.ModbusModelers[device.DeviceModel].NewClients(device.Address, dataFrameCount)
 	if err != nil {
 		klog.V(2).InfoS("Failed to connect Modbus device", "error", err, "deviceId", device.ID)
@@ -151,7 +148,6 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 		Clients:                  clients,
 		VariableCh:               make(chan *runtime.ParseVariableResult, 1),
 		VariableCount:            VariableCount,
-		CanCollect:               CanCollect,
 		NeedCheckCrc16Sum:        needCheckCrc16Sum,
 		NeedCheckTransaction:     needCheckTransaction,
 	}
@@ -165,26 +161,24 @@ func (broker *ModbusBroker) Destroy(ctx context.Context) {
 }
 
 func (broker *ModbusBroker) Collect(ctx context.Context) {
-	if broker.CanCollect {
-		go func() {
-			for {
-				start := time.Now().Unix()
-				if !broker.poll(ctx) {
-					return
-				}
-				select {
-				case <-broker.ExitCh:
-					return
-				default:
-					end := time.Now().Unix()
-					elapsed := end - start
-					if elapsed < int64(broker.Device.CollectorCycle) {
-						time.Sleep(time.Duration(int64(broker.Device.CollectorCycle)) * time.Second)
-					}
+	go func() {
+		for {
+			start := time.Now().Unix()
+			if !broker.poll(ctx) {
+				return
+			}
+			select {
+			case <-broker.ExitCh:
+				return
+			default:
+				end := time.Now().Unix()
+				elapsed := end - start
+				if elapsed < int64(broker.Device.CollectorCycle) {
+					time.Sleep(time.Duration(int64(broker.Device.CollectorCycle)) * time.Second)
 				}
 			}
-		}()
-	}
+		}
+	}()
 }
 
 func (broker *ModbusBroker) DeliverAction(ctx context.Context, obj map[string]interface{}) error {

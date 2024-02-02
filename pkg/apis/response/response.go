@@ -150,6 +150,10 @@ func ErrDeviceNotFound(resource string) *responseError {
 func ErrDeviceNotConnect(resource string) *responseError {
 	return generateError(ErrCodeDeviceNotConnect, resource)
 }
+func ErrDeviceOperatorUnSupported(operator string) *responseError {
+	return generateError(ErrCodeDeviceOperatorUnSupported, operator)
+}
+
 func ErrBooleanInvalid(infos ...string) *responseError {
 	if len(infos) == 1 {
 		infos = append(infos, "")

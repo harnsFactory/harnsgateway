@@ -34,7 +34,7 @@ func (m *ModbusDeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.De
 			DeviceCode:    modbusDevice.DeviceCode,
 			DeviceType:    modbusDevice.DeviceType,
 			DeviceModel:   modbusDevice.DeviceModel,
-			CollectStatus: false,
+			CollectStatus: runtime.CollectStatusToString[runtime.Stopped],
 		},
 		CollectorCycle:   modbusDevice.CollectorCycle,
 		VariableInterval: modbusDevice.VariableInterval,

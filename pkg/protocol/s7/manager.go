@@ -34,7 +34,7 @@ func (m *S7DeviceManager) CreateDevice(deviceType v1.DeviceType) (runtime.Device
 			DeviceCode:    s7Device.DeviceCode,
 			DeviceType:    s7Device.DeviceType,
 			DeviceModel:   s7Device.DeviceModel,
-			CollectStatus: false,
+			CollectStatus: runtime.CollectStatusToString[runtime.Stopped],
 		},
 		CollectorCycle:   s7Device.CollectorCycle,
 		VariableInterval: s7Device.VariableInterval,

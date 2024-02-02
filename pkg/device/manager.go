@@ -33,7 +33,7 @@ type Manager struct {
 	brokers          map[string]runtime.Broker
 	brokerReturnCh   map[string]chan *runtime.ParseVariableResult
 	stopCh           <-chan struct{}
-	restartCh        <-chan string
+	deviceStatusCh   chan string
 	closers          []runtime.LabeledCloser
 }
 
@@ -49,7 +49,7 @@ func NewManager(store *generic.Store, mqttClient mqtt.Client, gatewayMeta *gatew
 		brokerReturnCh:   make(map[string]chan *runtime.ParseVariableResult, 0),
 		store:            store,
 		stopCh:           stop,
-		restartCh:        make(chan string, 0),
+		deviceStatusCh:   make(chan string, 0),
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -64,16 +64,18 @@ func (m *Manager) Init() {
 		obj, _ := runtime.AccessorDevice(object)
 		m.devices.Store(obj.GetID(), obj)
 
-		err := m.readyCollect(obj)
-		if errors.Is(err, constant.ErrConnectDevice) {
-			// 开启探测协程 15S一次
-			m.heartBeatDevices.Store(obj.GetID(), obj)
-		} else {
-			klog.V(2).InfoS("Failed to start process collect device data", "deviceId", obj.GetID())
+		if err := m.readyCollect(obj); err != nil {
+			if errors.Is(err, constant.ErrConnectDevice) {
+				// 开启探测协程 15S一次
+				m.heartBeatDevices.Store(obj.GetID(), obj)
+			} else {
+				klog.V(2).InfoS("Failed to start process collect device data", "deviceId", obj.GetID())
+			}
 		}
 	}
 
 	go m.heartBeatDetection()
+	go m.listeningDeviceStatusCh()
 }
 
 func (m *Manager) GetDeviceById(id string, exploded bool) (runtime.Device, error) {
@@ -103,15 +105,14 @@ func (m *Manager) CreateDevice(object v1.DeviceType) (runtime.Device, error) {
 	m.devices.Store(rd.GetID(), rd)
 	obj, _ := runtime.AccessorDevice(created)
 
-	err = m.readyCollect(obj)
-	if errors.Is(err, constant.ErrDeviceType) {
-		return nil, err
-	} else if errors.Is(err, constant.ErrConnectDevice) {
-		// 开启探测协程 15S一次
-		m.heartBeatDevices.Store(rd.GetID(), rd)
-	} else if err != nil {
-		klog.V(2).InfoS("Failed to start process collect device data", "deviceId", obj.GetID())
-		return nil, err
+	if err = m.readyCollect(obj); err != nil {
+		if errors.Is(err, constant.ErrConnectDevice) {
+			// 开启探测协程 15S一次
+			m.heartBeatDevices.Store(rd.GetID(), rd)
+		} else {
+			klog.V(2).InfoS("Failed to start process collect device data", "deviceId", obj.GetID())
+			return nil, err
+		}
 	}
 
 	return rd, nil
@@ -181,6 +182,20 @@ func (m *Manager) ListDevices(filter *runtime.DeviceFilter, exploded bool) ([]ru
 	return rds, nil
 }
 
+func (m *Manager) SwitchDeviceStatus(id string, status string) error {
+	if _, err := m.GetDeviceById(id, true); err != nil {
+		klog.V(2).InfoS("Failed to find device", "deviceId", id)
+		return err
+	}
+	if _, ok := runtime.StringToDeviceStatusCh[status]; !ok {
+		klog.V(2).InfoS("Unsupported device status", "status", status)
+		return response.ErrDeviceOperatorUnSupported(status)
+	}
+	dsc := id + "-" + status
+	m.deviceStatusCh <- dsc
+	return nil
+}
+
 func (m *Manager) DeliverAction(id string, actions []map[string]interface{}) error {
 	device, err := m.GetDeviceById(id, true)
 	if err != nil {
@@ -215,7 +230,7 @@ func (m *Manager) DeliverAction(id string, actions []map[string]interface{}) err
 		return response.NewMultiError(response.ErrLegalActionNotFound)
 	}
 
-	if !device.GetCollectStatus() {
+	if device.GetCollectStatus() == runtime.CollectStatusToString[runtime.Unconnected] {
 		klog.V(2).InfoS("Failed to connect device", "deviceId", id)
 		return response.NewMultiError(response.ErrDeviceNotConnect(id))
 	}
@@ -226,25 +241,36 @@ func (m *Manager) DeliverAction(id string, actions []map[string]interface{}) err
 func (m Manager) cancelCollect(obj runtime.Device) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	// switch status
+	obj.SetCollectStatus(runtime.CollectStatusToString[runtime.Stopped])
+	// delete heartBeat devices if exist
+	if _, exist := m.heartBeatDevices.Load(obj.GetID()); exist {
+		m.heartBeatDevices.Delete(obj.GetID())
+	}
 	if v, ok := m.brokers[obj.GetID()]; ok {
 		v.Destroy(context.Background())
+		delete(m.brokers, obj.GetID())
+		delete(m.brokerReturnCh, obj.GetID())
 	}
-	delete(m.brokers, obj.GetID())
-	delete(m.brokerReturnCh, obj.GetID())
 	return nil
 }
 
 func (m *Manager) readyCollect(obj runtime.Device) error {
 	broker, results, err := generic.DeviceTypeBrokerMap[obj.GetDeviceType()](obj)
 	if err != nil {
-		return err
+		switch {
+		case errors.Is(err, constant.ErrConnectDevice):
+			obj.SetCollectStatus(runtime.CollectStatusToString[runtime.Unconnected])
+			return err
+		case errors.Is(err, constant.ErrDeviceEmptyVariable):
+			obj.SetCollectStatus(runtime.CollectStatusToString[runtime.EmptyVariable])
+			return nil
+		default:
+			return err
+		}
 	}
+	obj.SetCollectStatus(runtime.CollectStatusToString[runtime.Collecting])
 
-	if broker == nil {
-		v, _ := m.devices.Load(obj.GetID())
-		v.(runtime.Device).SetCollectStatus(true)
-		return nil
-	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.brokers[obj.GetID()] = broker
@@ -268,7 +294,9 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 				if ok {
 					if v, ok := m.devices.Load(deviceId); ok {
 						if len(pvr.Err) == 0 {
-							v.(runtime.Device).SetCollectStatus(true)
+							if v.(runtime.Device).GetCollectStatus() != runtime.CollectStatusToString[runtime.Collecting] {
+								v.(runtime.Device).SetCollectStatus(runtime.CollectStatusToString[runtime.Collecting])
+							}
 							pds := make([]runtime.PointData, 0, len(pvr.VariableSlice))
 							for _, value := range pvr.VariableSlice {
 								pd := runtime.PointData{
@@ -290,7 +318,7 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 								klog.V(1).InfoS("Failed to publish MQTT", "topic", topic, "err", token.Error())
 							}
 						} else {
-							v.(runtime.Device).SetCollectStatus(false)
+							v.(runtime.Device).SetCollectStatus(runtime.CollectStatusToString[runtime.CollectingError])
 						}
 					} else {
 						klog.V(2).InfoS("Failed to load device", "deviceId", deviceId)
@@ -363,6 +391,99 @@ func (m *Manager) heartBeatDetection() {
 					m.heartBeatDevices.Delete(deviceId)
 				}
 			}
+		}
+	}
+}
+
+func (m *Manager) listeningDeviceStatusCh() {
+	for {
+		select {
+		case _, ok := <-m.stopCh:
+			if !ok {
+				return
+			}
+		case statusCh, ok := <-m.deviceStatusCh:
+			if !ok {
+				return
+			}
+			split := strings.Split(statusCh, "-")
+			deviceId := split[0]
+			status := split[1]
+			d, exist := m.devices.Load(deviceId)
+			if !exist {
+				klog.V(2).InfoS("Failed to find device", "deviceId", deviceId)
+			}
+			m.switchDeviceStatus(d.(runtime.Device), status)
+		}
+	}
+}
+
+func (m *Manager) switchDeviceStatus(device runtime.Device, status string) {
+	cs := device.GetCollectStatus()
+	switch runtime.StringToCollectStatus[cs] {
+	case runtime.Collecting:
+		switch runtime.StringToDeviceStatusCh[status] {
+		case runtime.Start:
+			return
+		case runtime.Restart:
+			_ = m.cancelCollect(device)
+			if err := m.readyCollect(device); err != nil {
+				if errors.Is(err, constant.ErrConnectDevice) {
+					m.heartBeatDevices.Store(device.GetID(), device)
+				} else {
+					klog.V(2).InfoS("Failed to start process collect device data", "deviceId", device.GetID())
+				}
+			}
+			return
+		case runtime.Stop:
+			_ = m.cancelCollect(device)
+			return
+		}
+	case runtime.CollectingError, runtime.Error:
+		switch runtime.StringToDeviceStatusCh[status] {
+		case runtime.Restart, runtime.Start:
+			_ = m.cancelCollect(device)
+			if err := m.readyCollect(device); err != nil {
+				if errors.Is(err, constant.ErrConnectDevice) {
+					m.heartBeatDevices.Store(device.GetID(), device)
+				} else {
+					klog.V(2).InfoS("Failed to start process collect device data", "deviceId", device.GetID())
+				}
+			}
+			return
+		case runtime.Stop:
+			_ = m.cancelCollect(device)
+			return
+		}
+	case runtime.EmptyVariable, runtime.Unconnected:
+		switch runtime.StringToDeviceStatusCh[status] {
+		case runtime.Restart, runtime.Start:
+			_ = m.cancelCollect(device)
+			if err := m.readyCollect(device); err != nil {
+				if errors.Is(err, constant.ErrConnectDevice) {
+					m.heartBeatDevices.Store(device.GetID(), device)
+				} else {
+					klog.V(2).InfoS("Failed to start process collect device data", "deviceId", device.GetID())
+				}
+			}
+			return
+		case runtime.Stop:
+			_ = m.cancelCollect(device)
+			return
+		}
+	case runtime.Stopped:
+		switch runtime.StringToDeviceStatusCh[status] {
+		case runtime.Restart, runtime.Start:
+			if err := m.readyCollect(device); err != nil {
+				if errors.Is(err, constant.ErrConnectDevice) {
+					m.heartBeatDevices.Store(device.GetID(), device)
+				} else {
+					klog.V(2).InfoS("Failed to start process collect device data", "deviceId", device.GetID())
+				}
+			}
+			return
+		case runtime.Stop:
+			return
 		}
 	}
 }

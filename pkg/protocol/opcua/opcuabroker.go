@@ -30,7 +30,6 @@ type OpcUaBroker struct {
 	NamespaceVariableDataFrame []*OpuUaDataFrame
 	VariableCount              int
 	VariableCh                 chan *runtime.ParseVariableResult
-	CanCollect                 bool
 }
 
 func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableResult, error) {
@@ -40,7 +39,6 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 		return nil, nil, constant.ErrDeviceType
 	}
 
-	var CanCollect bool
 	groupOf := genericruntime.VariablesInGroupOf[*opcuaruntime.Variable](device.Variables, 1000)
 	namespaceVariableDataFrame := make([]*OpuUaDataFrame, 0, 0)
 
@@ -67,9 +65,8 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 	}
 	if len(namespaceVariableDataFrame) == 0 {
 		klog.V(2).InfoS("Unnecessary to collect from OPC device.Because of the variables is empty", "deviceId", device.ID)
-		return nil, nil, nil
+		return nil, nil, constant.ErrDeviceEmptyVariable
 	}
-	CanCollect = true
 
 	clients, err := model.OpcUaModelers[device.DeviceModel].NewClients(device.Address, len(namespaceVariableDataFrame))
 	if err != nil {
@@ -82,7 +79,6 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 		NamespaceVariableDataFrame: namespaceVariableDataFrame,
 		VariableCh:                 make(chan *runtime.ParseVariableResult, 1),
 		VariableCount:              len(device.Variables),
-		CanCollect:                 CanCollect,
 		Clients:                    clients,
 	}
 	return mtc, mtc.VariableCh, nil
@@ -95,26 +91,24 @@ func (broker *OpcUaBroker) Destroy(ctx context.Context) {
 }
 
 func (broker *OpcUaBroker) Collect(ctx context.Context) {
-	if broker.CanCollect {
-		go func() {
-			for {
-				start := time.Now().Unix()
-				if !broker.poll(ctx) {
-					return
-				}
-				select {
-				case <-broker.ExitCh:
-					return
-				default:
-					end := time.Now().Unix()
-					elapsed := end - start
-					if elapsed < int64(broker.Device.CollectorCycle) {
-						time.Sleep(time.Duration(int64(broker.Device.CollectorCycle)) * time.Second)
-					}
+	go func() {
+		for {
+			start := time.Now().Unix()
+			if !broker.poll(ctx) {
+				return
+			}
+			select {
+			case <-broker.ExitCh:
+				return
+			default:
+				end := time.Now().Unix()
+				elapsed := end - start
+				if elapsed < int64(broker.Device.CollectorCycle) {
+					time.Sleep(time.Duration(int64(broker.Device.CollectorCycle)) * time.Second)
 				}
 			}
-		}()
-	}
+		}
+	}()
 }
 
 func (broker *OpcUaBroker) DeliverAction(ctx context.Context, obj map[string]interface{}) error {

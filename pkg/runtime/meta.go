@@ -11,6 +11,52 @@ var (
 	ErrNotObject = fmt.Errorf("object does not implement the Object interfaces")
 )
 
+type CollectStatus byte
+type DeviceStatusCh byte
+
+const (
+	Collecting CollectStatus = iota
+	CollectingError
+	Unconnected
+	EmptyVariable
+	Stopped
+	Error
+)
+
+var CollectStatusToString = map[CollectStatus]string{
+	Collecting:      "collecting",
+	CollectingError: "collectingError",
+	Unconnected:     "unconnected",
+	EmptyVariable:   "emptyVariable",
+	Stopped:         "stopped",
+	Error:           "error",
+}
+var StringToCollectStatus = map[string]CollectStatus{
+	"collecting":      Collecting,
+	"collectingError": CollectingError,
+	"unconnected":     Unconnected,
+	"emptyVariable":   EmptyVariable,
+	"stopped":         Stopped,
+	"error":           Error,
+}
+
+const (
+	Restart DeviceStatusCh = iota
+	Start
+	Stop
+)
+
+var DeviceStatusChToString = map[DeviceStatusCh]string{
+	Restart: "restart",
+	Start:   "start",
+	Stop:    "stop",
+}
+var StringToDeviceStatusCh = map[string]DeviceStatusCh{
+	"restart": Restart,
+	"start":   Start,
+	"stop":    Stop,
+}
+
 type RunObject interface {
 	DeepCopyObject() RunObject
 }
@@ -68,8 +114,8 @@ type Device interface {
 	SetDeviceType(string)
 	GetDeviceModel() string
 	SetDeviceModel(string)
-	GetCollectStatus() bool
-	SetCollectStatus(bool)
+	GetCollectStatus() string
+	SetCollectStatus(string)
 }
 
 var _ Device = (*DeviceMeta)(nil)
@@ -80,7 +126,7 @@ type DeviceMeta struct {
 	DeviceCode    string                   `json:"deviceCode"`
 	DeviceType    string                   `json:"deviceType"`
 	DeviceModel   string                   `json:"deviceModel"`
-	CollectStatus bool                     `json:"-"`
+	CollectStatus string                   `json:"collectStatus"`
 	VariablesMap  map[string]VariableValue `json:"-"`
 }
 
@@ -107,12 +153,12 @@ func (d *DeviceMeta) SetDeviceType(s string) {
 	d.DeviceType = s
 }
 
-func (d *DeviceMeta) GetCollectStatus() bool {
+func (d *DeviceMeta) GetCollectStatus() string {
 	return d.CollectStatus
 }
 
-func (d *DeviceMeta) SetCollectStatus(collect bool) {
-	d.CollectStatus = collect
+func (d *DeviceMeta) SetCollectStatus(collectStatus string) {
+	d.CollectStatus = collectStatus
 }
 
 func (d *DeviceMeta) GetDeviceModel() string {

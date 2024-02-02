@@ -129,6 +129,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Device'
+  /devices/{id}/{status}:
+    put:
+      tags:
+        - Device
+      summary: Switch Device status
+      operationId: switchDeviceStatusById
+      parameters:
+        - name: id
+          in: path
+          description: deviceId.
+          required: true
+          schema:
+            maxLength: 32
+            minLength: 32
+            pattern: '[0-9A-F]{32}'
+            type: string
+        - name: status
+          in: path
+          description: device operator desc.
+          required: true
+          schema:
+            type: string
+            enum:
+              - start
+              - restart
+              - stop
+      responses:
+        202:
+          description: The operator has been send
+        400:
+          description: Invalid request.
+        500:
+          description: Internal Server Error.
+
 
 components:
   schemas:

@@ -146,7 +146,6 @@ type S7Broker struct {
 	StoreAddressDataFrameMap map[s7runtime.S7StoreArea][]*S7DataFrame
 	VariableCount            int
 	VariableCh               chan *runtime.ParseVariableResult
-	CanCollect               bool
 	Endpoint                 string
 }
 
@@ -161,7 +160,6 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 		klog.V(2).InfoS("Failed to connect s7 device for request pdu length", "err", err)
 		return nil, nil, constant.ErrConnectDevice
 	}
-	CanCollect := false
 
 	variableCount := 0
 	storeAddressVariableMap := make(map[s7runtime.S7StoreArea][]*s7runtime.Variable)
@@ -232,12 +230,12 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 	for _, values := range storeAddressDataFrameMap {
 		dataFrameCount += len(values)
 	}
+
 	if dataFrameCount == 0 {
 		klog.V(2).InfoS("Unnecessary to collect from s7 device.Because of the variables is empty", "deviceId", device.ID)
-		return nil, nil, nil
+		return nil, nil, constant.ErrDeviceEmptyVariable
 	}
 
-	CanCollect = true
 	clients, err := model.S7Modelers[device.DeviceModel].NewClients(device.Address, dataFrameCount)
 	if err != nil {
 		klog.V(2).InfoS("Failed to connect S7 device", "error", err, "deviceId", device.ID)
@@ -250,7 +248,6 @@ func NewBroker(d runtime.Device) (runtime.Broker, chan *runtime.ParseVariableRes
 		StoreAddressDataFrameMap: storeAddressDataFrameMap,
 		VariableCh:               make(chan *runtime.ParseVariableResult, 1),
 		VariableCount:            len(device.Variables),
-		CanCollect:               CanCollect,
 		Clients:                  clients,
 	}
 	return s7c, s7c.VariableCh, nil
@@ -263,26 +260,24 @@ func (broker *S7Broker) Destroy(ctx context.Context) {
 }
 
 func (broker *S7Broker) Collect(ctx context.Context) {
-	if broker.CanCollect {
-		go func() {
-			for {
-				start := time.Now().Unix()
-				if !broker.poll(ctx) {
-					return
-				}
-				select {
-				case <-broker.ExitCh:
-					return
-				default:
-					end := time.Now().Unix()
-					elapsed := end - start
-					if elapsed < int64(broker.Device.CollectorCycle) {
-						time.Sleep(time.Duration(int64(broker.Device.CollectorCycle)) * time.Second)
-					}
+	go func() {
+		for {
+			start := time.Now().Unix()
+			if !broker.poll(ctx) {
+				return
+			}
+			select {
+			case <-broker.ExitCh:
+				return
+			default:
+				end := time.Now().Unix()
+				elapsed := end - start
+				if elapsed < int64(broker.Device.CollectorCycle) {
+					time.Sleep(time.Duration(int64(broker.Device.CollectorCycle)) * time.Second)
 				}
 			}
-		}()
-	}
+		}
+	}()
 }
 
 func (broker *S7Broker) DeliverAction(ctx context.Context, obj map[string]interface{}) error {

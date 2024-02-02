@@ -22,7 +22,9 @@ func InstallHandler(group *gin.RouterGroup, mgr *Manager) {
 	group.DELETE("/devices/:id", deleteDevice(mgr))
 	group.GET("/devices", listDevices(mgr))
 	group.GET("/devices/:id", getDeviceById(mgr))
+	group.PUT("/devices/:id/:status", switchDeviceStatusById(mgr))
 	group.PUT("/devices/:id/action", controlDeviceById(mgr))
+
 }
 
 func createDevice(mgr *Manager) gin.HandlerFunc {
@@ -128,6 +130,22 @@ func getDeviceById(mgr *Manager) gin.HandlerFunc {
 
 		c.Header(apis.ETag, fmt.Sprintf("%s", rd.GetVersion()))
 		c.JSON(http.StatusOK, rd)
+	}
+}
+
+func switchDeviceStatusById(mgr *Manager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		status := c.Param("status")
+
+		if err := mgr.SwitchDeviceStatus(id, status); err != nil {
+			if os.IsNotExist(err) {
+				c.Status(http.StatusNotFound)
+			} else {
+				c.JSON(http.StatusBadRequest, response.NewMultiError(err))
+			}
+		}
+		c.Status(http.StatusAccepted)
 	}
 }
 
