@@ -4,11 +4,14 @@ import (
 	s7runtime "harnsgateway/pkg/protocol/s7/runtime"
 	"harnsgateway/pkg/runtime"
 	"harnsgateway/pkg/runtime/constant"
+	"harnsgateway/pkg/utils/differenceutil"
 	"harnsgateway/pkg/utils/randutil"
 	"harnsgateway/pkg/utils/uuidutil"
 	v1 "harnsgateway/pkg/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -79,6 +82,71 @@ func (m *S7DeviceManager) UpdateValidation(deviceType v1.DeviceType, device runt
 }
 
 func (m *S7DeviceManager) UpdateDevice(id string, deviceType v1.DeviceType, device runtime.Device) (runtime.Device, error) {
-	// TODO implement me
-	panic("implement me")
+	s7Device, ok := deviceType.(*v1.S7Device)
+	if !ok {
+		klog.V(2).InfoS("Unsupported device,type not OpcUa")
+		return nil, constant.ErrDeviceType
+	}
+
+	copyDevice, _ := device.(*s7runtime.S7Device)
+	copyDevice.DeviceMeta.PublishMeta.Topic = s7Device.Topic
+	copyDevice.DeviceMeta.ObjectMeta.Name = s7Device.Name
+	copyDevice.DeviceMeta.DeviceCode = s7Device.DeviceCode
+	copyDevice.DeviceMeta.DeviceType = s7Device.DeviceType
+	copyDevice.DeviceMeta.DeviceModel = s7Device.DeviceModel
+	// todo should add enum to desc device has been updated
+	// copyDevice.DeviceMeta.CollectStatus = runtime.CollectStatusToString[runtime.Stopped]
+
+	copyDevice.CollectorCycle = s7Device.CollectorCycle
+	copyDevice.VariableInterval = s7Device.VariableInterval
+	copyDevice.Address.Location = s7Device.Address.Location
+	copyDevice.Address.Option.Port = s7Device.Address.Option.Port
+	copyDevice.Address.Option.Rack = s7Device.Address.Option.Rack
+	copyDevice.Address.Option.Slot = s7Device.Address.Option.Slot
+
+	delChars, _, _ := differenceutil.DifferenceAndIntersectionObjects(copyDevice.Variables, s7Device.Variables,
+		func(value interface{}) string { return value.(*s7runtime.Variable).Name },
+		func(value interface{}) string { return value.(*v1.S7Variable).Name })
+
+	i := 0
+	delCharSet := sets.NewString(delChars...)
+	for _, c := range copyDevice.Variables {
+		if !delCharSet.Has(c.Name) {
+			copyDevice.Variables[i] = c
+			i++
+		} else {
+			delete(copyDevice.VariablesMap, c.Name)
+		}
+	}
+	for j := i; j < len(copyDevice.Variables); j++ {
+		copyDevice.Variables[j] = nil
+	}
+	copyDevice.Variables = copyDevice.Variables[:i]
+
+	// upsert
+	for _, ndv := range s7Device.Variables {
+		name := strings.TrimSpace(ndv.Name)
+		if v, ok := copyDevice.VariablesMap[name]; ok {
+			v.DataType = constant.StringToDataType[ndv.DataType]
+			v.Name = ndv.Name
+			v.Address = ndv.Address
+			v.Rate = ndv.Rate
+			v.DefaultValue = ndv.DefaultValue
+			v.AccessMode = ndv.AccessMode
+		} else {
+			v := &s7runtime.Variable{
+				DataType:     constant.StringToDataType[ndv.DataType],
+				Name:         ndv.Name,
+				Address:      ndv.Address,
+				Rate:         ndv.Rate,
+				DefaultValue: ndv.DefaultValue,
+				AccessMode:   ndv.AccessMode,
+			}
+			copyDevice.Variables = append(copyDevice.Variables, v)
+			copyDevice.VariablesMap[v.Name] = v
+
+		}
+	}
+
+	return copyDevice, nil
 }
