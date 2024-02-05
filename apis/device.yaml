@@ -129,6 +129,75 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Device'
+    patch:
+      tags:
+        - Device
+      summary: Update the Device
+      description: Patch the Device with the provided content. Conforms to RFC 7396 - JSON merge Patch and RFC 6902 - JSON Patch.
+      operationId: patchDeviceById
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier
+          required: true
+          schema:
+            maxLength: 32
+            minLength: 32
+            pattern: '[0-9A-F]{32}'
+            type: string
+        - name: If-Match
+          in: header
+          description: Last known version to facilitate optimistic locking
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: device
+        content:
+          application/json-patch+json:
+            schema:
+              type: object
+              example:
+                [
+                  {
+                    "op": "replace",
+                    "path": "/name",
+                    "value": "modbus服务"
+                  },
+                  {
+                    "op": "replace",
+                    "path": "/deviceCode",
+                    "value": "modbus"
+                  }
+                ]
+          application/merge-patch+json:
+            schema:
+              type: object
+              example:
+                {
+                  "name": "modbus服务",
+                  "deviceCode": "modbus"
+                }
+        required: true
+      responses:
+        400:
+          description: Invalid Request.
+        404:
+          description: Not Found.
+        412:
+          description: Precondition Failed.
+        200:
+          description: The device
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: ETag hash of the resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+
   /devices/{id}/{status}:
     put:
       tags:

@@ -38,6 +38,54 @@ paths:
           description: Invalid request.
         500:
           description: Internal Server Error.
+
+    patch:
+      tags:
+        - Device
+      summary: Update the Device
+      description: Update the Device with the provided content.
+      operationId: updateDeviceById
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier
+          required: true
+          schema:
+            maxLength: 32
+            minLength: 32
+            pattern: '[0-9A-F]{32}'
+            type: string
+        - name: If-Match
+          in: header
+          description: Last known version to facilitate optimistic locking
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Modbus Device
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModbusDevice'
+        required: true
+      responses:
+        400:
+          description: Invalid Request.
+        404:
+          description: Not Found.
+        412:
+          description: Precondition Failed.
+        200:
+          description: The device
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: ETag hash of the resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModbusDevice'
 components:
   schemas:
     ModbusDevice:
