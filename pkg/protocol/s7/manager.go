@@ -73,3 +73,12 @@ func (m *S7DeviceManager) DeleteDevice(device runtime.Device) (runtime.Device, e
 		DeviceModel: device.GetDeviceModel(),
 	}}, nil
 }
+
+func (m *S7DeviceManager) UpdateValidation(deviceType v1.DeviceType, device runtime.Device) error {
+	return nil
+}
+
+func (m *S7DeviceManager) UpdateDevice(id string, deviceType v1.DeviceType, device runtime.Device) (runtime.Device, error) {
+	// TODO implement me
+	panic("implement me")
+}

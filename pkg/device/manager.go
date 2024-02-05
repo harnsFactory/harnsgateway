@@ -78,24 +78,13 @@ func (m *Manager) Init() {
 	go m.listeningDeviceStatusCh()
 }
 
-func (m *Manager) GetDeviceById(id string, exploded bool) (runtime.Device, error) {
-	d, isExist := m.devices.Load(id)
-	if !isExist {
-		return nil, os.ErrNotExist
-	}
-	device, _ := d.(runtime.Device)
-	if !exploded {
-		return m.foldDevice(device), nil
-	}
-	return device, nil
-}
-
 func (m *Manager) CreateDevice(object v1.DeviceType) (runtime.Device, error) {
 	device, err := m.deviceManager[object.GetDeviceType()].CreateDevice(object)
 	if err != nil {
 		klog.V(2).InfoS("Failed to create device", "error", err)
 		return nil, err
 	}
+
 	created, err := m.store.Create(device)
 	if err != nil {
 		klog.V(2).InfoS("Failed to store device", "error", err)
@@ -103,14 +92,14 @@ func (m *Manager) CreateDevice(object v1.DeviceType) (runtime.Device, error) {
 	}
 	rd := created.(runtime.Device)
 	m.devices.Store(rd.GetID(), rd)
-	obj, _ := runtime.AccessorDevice(created)
+	_, _ = runtime.AccessorDevice(created)
 
-	if err = m.readyCollect(obj); err != nil {
+	if err = m.readyCollect(rd); err != nil {
 		if errors.Is(err, constant.ErrConnectDevice) {
 			// 开启探测协程 15S一次
 			m.heartBeatDevices.Store(rd.GetID(), rd)
 		} else {
-			klog.V(2).InfoS("Failed to start process collect device data", "deviceId", obj.GetID())
+			klog.V(2).InfoS("Failed to start process collect device data", "deviceId", rd.GetID())
 			return nil, err
 		}
 	}
@@ -150,6 +139,40 @@ func (m *Manager) DeleteDevice(id string, version string) (runtime.Device, error
 	return device, nil
 }
 
+func (m *Manager) UpdateDeviceById(id string, version string, newObj v1.DeviceType) (runtime.Device, error) {
+	d, err := m.GetDeviceById(id, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if version != d.GetVersion() {
+		return nil, apis.ErrMismatch
+	}
+
+	copied := d.DeepCopyObject()
+	cd := copied.(runtime.Device)
+
+	if err = m.deviceManager[d.GetDeviceType()].UpdateValidation(newObj, cd); err != nil {
+		return nil, err
+	}
+
+	device, err := m.deviceManager[d.GetDeviceType()].UpdateDevice(id, newObj, cd)
+	if err != nil {
+		klog.V(2).InfoS("Failed to update device", "error", err)
+		return nil, err
+	}
+
+	updated, err := m.store.Update(device)
+	if err != nil {
+		klog.V(2).InfoS("Failed to update device", "error", err)
+		return nil, err
+	}
+	rd := updated.(runtime.Device)
+	m.devices.Store(rd.GetID(), updated)
+
+	return updated, nil
+}
+
 func (m *Manager) ListDevices(filter *runtime.DeviceFilter, exploded bool) ([]runtime.Device, error) {
 	rds := make([]runtime.Device, 0)
 	predicates := runtime.ParseTypeFilter(filter)
@@ -180,6 +203,18 @@ func (m *Manager) ListDevices(filter *runtime.DeviceFilter, exploded bool) ([]ru
 	}
 
 	return rds, nil
+}
+
+func (m *Manager) GetDeviceById(id string, exploded bool) (runtime.Device, error) {
+	d, isExist := m.devices.Load(id)
+	if !isExist {
+		return nil, os.ErrNotExist
+	}
+	device, _ := d.(runtime.Device)
+	if !exploded {
+		return m.foldDevice(device), nil
+	}
+	return device, nil
 }
 
 func (m *Manager) SwitchDeviceStatus(id string, status string) error {
@@ -270,7 +305,7 @@ func (m *Manager) readyCollect(obj runtime.Device) error {
 		}
 	}
 	obj.SetCollectStatus(runtime.CollectStatusToString[runtime.Collecting])
-
+	klog.V(2).InfoS("Succeed to collect data", "deviceId", obj.GetID())
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.brokers[obj.GetID()] = broker

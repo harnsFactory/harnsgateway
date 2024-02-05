@@ -154,6 +154,10 @@ func ErrDeviceOperatorUnSupported(operator string) *responseError {
 	return generateError(ErrCodeDeviceOperatorUnSupported, operator)
 }
 
+func ErrTooManyJsonPatchOperations(max int) *responseError {
+	return generateError(ErrCodeTooManyJsonPatchOperations, max)
+}
+
 func ErrBooleanInvalid(infos ...string) *responseError {
 	if len(infos) == 1 {
 		infos = append(infos, "")

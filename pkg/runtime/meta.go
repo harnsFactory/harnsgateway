@@ -123,11 +123,11 @@ var _ Device = (*DeviceMeta)(nil)
 type DeviceMeta struct {
 	ObjectMeta
 	PublishMeta
-	DeviceCode    string                   `json:"deviceCode"`
-	DeviceType    string                   `json:"deviceType"`
-	DeviceModel   string                   `json:"deviceModel"`
-	CollectStatus string                   `json:"collectStatus"`
-	VariablesMap  map[string]VariableValue `json:"-"`
+	DeviceCode    string `json:"deviceCode"`
+	DeviceType    string `json:"deviceType"`
+	DeviceModel   string `json:"deviceModel"`
+	CollectStatus string `json:"collectStatus"`
+	// VariablesMap  map[string]VariableValue `json:"-"`
 }
 
 func (d *DeviceMeta) IndexDevice() {

@@ -5,21 +5,26 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/gin-gonic/gin"
 	"harnsgateway/pkg/apis"
 	"harnsgateway/pkg/apis/response"
 	"harnsgateway/pkg/generic"
 	"harnsgateway/pkg/runtime"
 	"io"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 )
 
 func InstallHandler(group *gin.RouterGroup, mgr *Manager) {
 	group.POST("/devices", createDevice(mgr))
 	group.DELETE("/devices/:id", deleteDevice(mgr))
+	group.PATCH("/devices/:id", patchDeviceById(mgr))
+	group.PUT("/devices/:id", updateDeviceById(mgr))
 	group.GET("/devices", listDevices(mgr))
 	group.GET("/devices/:id", getDeviceById(mgr))
 	group.PUT("/devices/:id/:status", switchDeviceStatusById(mgr))
@@ -88,8 +93,135 @@ func deleteDevice(mgr *Manager) gin.HandlerFunc {
 	}
 }
 
+func patchDeviceById(mgr *Manager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer c.Request.Body.Close()
+
+		contentType := c.GetHeader("Content-Type")
+		// Remove "; charset=" if included in header.
+		if idx := strings.Index(contentType, ";"); idx > 0 {
+			contentType = contentType[:idx]
+		}
+
+		if !patchTypes.Has(contentType) {
+			c.Status(http.StatusUnsupportedMediaType)
+			return
+		}
+
+		eTag := c.GetHeader(apis.IfMatch)
+		if len(eTag) == 0 {
+			c.Status(http.StatusPreconditionRequired)
+			return
+		}
+
+		pathBytes, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			klog.V(3).InfoS("Failed to read", "err", err)
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+
+		id := c.Param("id")
+		old, err := mgr.GetDeviceById(id, true)
+		if err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+
+		versionedJS, err := json.Marshal(old)
+		if err != nil {
+			klog.V(3).InfoS("Failed to marshal", "err", err)
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+
+		patchedJS, err := applyJSPatch(types.PatchType(contentType), pathBytes, versionedJS)
+		if err != nil {
+			c.JSONP(http.StatusBadRequest, response.NewMultiError(err))
+			return
+		}
+
+		newObj := generic.DeviceTypeMap[old.GetDeviceType()]()
+		if err := json.NewDecoder(bytes.NewBuffer(patchedJS)).Decode(newObj); err != nil {
+			klog.V(3).InfoS("Failed to decode", "err", err)
+			c.JSON(http.StatusBadRequest, response.NewMultiError(response.ErrMalformedJSON))
+			return
+		}
+
+		updated, err := mgr.UpdateDeviceById(id, eTag, newObj)
+		if err != nil {
+			switch {
+			case os.IsNotExist(err):
+				c.Status(http.StatusNotFound)
+			case errors.Is(err, apis.ErrMismatch):
+				c.Status(http.StatusPreconditionFailed)
+			default:
+				if response.IsResponseError(err) {
+					c.JSON(http.StatusBadRequest, response.NewMultiError(err))
+				} else {
+					c.Status(http.StatusInternalServerError)
+				}
+			}
+			return
+		}
+
+		c.Header(apis.ETag, updated.GetVersion())
+		c.JSON(http.StatusOK, updated)
+	}
+}
+
+func updateDeviceById(mgr *Manager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer c.Request.Body.Close()
+
+		eTag := c.GetHeader(apis.IfMatch)
+		if len(eTag) == 0 {
+			c.Status(http.StatusPreconditionRequired)
+			return
+		}
+
+		id := c.Param("id")
+		old, err := mgr.GetDeviceById(id, true)
+		if err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+
+		newObj := generic.DeviceTypeMap[old.GetDeviceType()]()
+		if err := json.NewDecoder(c.Request.Body).Decode(newObj); err != nil {
+			klog.V(3).InfoS("Failed to decode", "err", err)
+			c.JSON(http.StatusBadRequest, response.NewMultiError(response.ErrMalformedJSON))
+			return
+		}
+
+		updated, err := mgr.UpdateDeviceById(id, eTag, newObj)
+		if err != nil {
+			switch {
+			case os.IsNotExist(err):
+				c.Status(http.StatusNotFound)
+			case errors.Is(err, apis.ErrMismatch):
+				c.Status(http.StatusPreconditionFailed)
+			default:
+				if response.IsResponseError(err) {
+					c.JSON(http.StatusBadRequest, response.NewMultiError(err))
+				} else {
+					c.Status(http.StatusInternalServerError)
+				}
+			}
+			return
+		}
+
+		if updated != nil {
+			c.Header(apis.ETag, updated.GetVersion())
+		}
+		c.JSON(http.StatusOK, updated)
+	}
+}
+
 func listDevices(mgr *Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		defer c.Request.Body.Close()
+
 		query := c.Request.URL.Query()
 		exploded := false
 		filter := runtime.DeviceFilter{}
@@ -111,8 +243,9 @@ func listDevices(mgr *Manager) gin.HandlerFunc {
 
 func getDeviceById(mgr *Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id := c.Param("id")
+		defer c.Request.Body.Close()
 
+		id := c.Param("id")
 		query := c.Request.URL.Query()
 		exploded := false
 		if len(query) > 0 {
@@ -135,9 +268,10 @@ func getDeviceById(mgr *Manager) gin.HandlerFunc {
 
 func switchDeviceStatusById(mgr *Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		defer c.Request.Body.Close()
+
 		id := c.Param("id")
 		status := c.Param("status")
-
 		if err := mgr.SwitchDeviceStatus(id, status); err != nil {
 			if os.IsNotExist(err) {
 				c.Status(http.StatusNotFound)
@@ -151,8 +285,9 @@ func switchDeviceStatusById(mgr *Manager) gin.HandlerFunc {
 
 func controlDeviceById(mgr *Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id := c.Param("id")
+		defer c.Request.Body.Close()
 
+		id := c.Param("id")
 		var actions []map[string]interface{}
 		if err := json.NewDecoder(c.Request.Body).Decode(&actions); err != nil {
 			klog.V(3).InfoS("Failed to parse action", "err", err)
@@ -168,5 +303,35 @@ func controlDeviceById(mgr *Manager) gin.HandlerFunc {
 		}
 
 		c.Status(http.StatusAccepted)
+	}
+}
+
+func applyJSPatch(patchType types.PatchType, patchBytes, versionedJS []byte) (patchedJS []byte, err error) {
+	switch patchType {
+	case types.JSONPatchType:
+		patchObj, err := jsonpatch.DecodePatch(patchBytes)
+		if err != nil {
+			return nil, response.ErrMalformedJSON
+		}
+		if len(patchObj) > maxJSONPatchOperations {
+			klog.V(3).InfoS("Too many json patch operations", "count", len(patchObj))
+			return nil, response.ErrTooManyJsonPatchOperations(maxJSONPatchOperations)
+		}
+		patchedJS, err := patchObj.Apply(versionedJS)
+		if err != nil {
+			klog.V(3).InfoS("Failed to apply json patch", "err", err)
+			return nil, response.ErrMalformedJSON
+		}
+		return patchedJS, nil
+	case types.MergePatchType:
+		patchedJS, err = jsonpatch.MergePatch(versionedJS, patchBytes)
+		if err != nil {
+			klog.V(3).InfoS("Failed to apply json merge patch", "err", err)
+			return nil, response.ErrMalformedJSON
+		}
+		return patchedJS, err
+	default:
+		// only here as a safety net - gin filters content-type
+		return nil, fmt.Errorf("unknown Content-Type header for patch: %v", patchType)
 	}
 }

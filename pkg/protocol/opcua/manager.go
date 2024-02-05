@@ -70,3 +70,12 @@ func (m *OpcUaDeviceManager) DeleteDevice(device runtime.Device) (runtime.Device
 		DeviceModel: device.GetDeviceModel(),
 	}}, nil
 }
+
+func (m *OpcUaDeviceManager) UpdateValidation(deviceType v1.DeviceType, device runtime.Device) error {
+	return nil
+}
+
+func (m *OpcUaDeviceManager) UpdateDevice(id string, deviceType v1.DeviceType, device runtime.Device) (runtime.Device, error) {
+	// TODO implement me
+	panic("implement me")
+}

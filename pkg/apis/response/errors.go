@@ -1,14 +1,16 @@
 package response
 
 var errors = map[ErrCode]string{
-	ErrCodeMalformedJSON:       "The JSON you provided was not well-formed or did not validate against our published format.",
-	ErrCodeRequestBody:         "Request body error",
-	ErrCodeLegalActionNotFound: "Legal action not found.",
-	ErrCodeDeviceNotFound:      "Device [%s] not found.",
-	ErrCodeResourceExists:      "Variable [%s] already exists.",
-	ErrCodeResourceNotFound:    "Variable [%s] not found.",
-	ErrCodeVariableNotWritable: "Variable [%s] not writable.",
-	ErrCodeDeviceNotConnect:    "Device [%s] not connect.",
+	ErrCodeMalformedJSON:              "The JSON you provided was not well-formed or did not validate against our published format.",
+	ErrCodeRequestBody:                "Request body error",
+	ErrCodeLegalActionNotFound:        "Legal action not found.",
+	ErrCodeDeviceNotFound:             "Device [%s] not found.",
+	ErrCodeResourceExists:             "Variable [%s] already exists.",
+	ErrCodeResourceNotFound:           "Variable [%s] not found.",
+	ErrCodeVariableNotWritable:        "Variable [%s] not writable.",
+	ErrCodeDeviceNotConnect:           "Device [%s] not connect.",
+	ErrCodeDeviceOperatorUnSupported:  "Device operator [%s] not supported.",
+	ErrCodeTooManyJsonPatchOperations: "Json Patch operations exceeds %d.",
 }
 
 // !!! IMPORTANT PLEASE READ FIRST !!!
